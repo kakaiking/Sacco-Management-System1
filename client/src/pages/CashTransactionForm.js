@@ -1,0 +1,506 @@
+import React, { useContext, useEffect, useState } from "react";
+import { useHistory } from "react-router-dom";
+import { FiArrowLeft, FiSearch } from "react-icons/fi";
+import axios from "axios";
+import { useSnackbar } from "../helpers/SnackbarContext";
+import { AuthContext } from "../helpers/AuthContext";
+import { usePermissions } from "../hooks/usePermissions";
+import { PERMISSIONS } from "../helpers/PermissionUtils";
+import DashboardWrapper from '../components/DashboardWrapper';
+import SaccoLookupModal from '../components/SaccoLookupModal';
+import AccountLookupModal from '../components/AccountLookupModal';
+
+function CashTransactionForm() {
+  const history = useHistory();
+  const { authState, isLoading } = useContext(AuthContext);
+  const { showMessage } = useSnackbar();
+  const { canView, canAdd } = usePermissions();
+
+  const [form, setForm] = useState({
+    transactionId: "",
+    saccoId: "",
+    saccoName: "",
+    transactionType: "credit", // "debit" or "credit"
+    accountId: "",
+    accountName: "",
+    amount: "",
+    status: "Pending",
+    remarks: "",
+    createdBy: "",
+    createdOn: "",
+  });
+
+  const [cashierTill, setCashierTill] = useState(null);
+  const [saving, setSaving] = useState(false);
+
+  // Modal states
+  const [isSaccoModalOpen, setIsSaccoModalOpen] = useState(false);
+  const [isAccountModalOpen, setIsAccountModalOpen] = useState(false);
+
+  useEffect(() => {
+    // Only redirect if authentication check is complete and user is not authenticated
+    if (!isLoading && !authState.status) {
+      history.push("/login");
+    }
+  }, [authState, isLoading, history]);
+
+  // Generate Transaction ID for new transactions
+  const generateTransactionId = () => {
+    const randomNum = Math.floor(1000000 + Math.random() * 9000000); // 7 digits
+    return `T-${randomNum}`;
+  };
+
+  // Load cashier till information when component mounts
+  useEffect(() => {
+    const loadCashierTill = async () => {
+      if (!authState.status || authState.role !== 'Cashier') {
+        return;
+      }
+
+      try {
+        const response = await axios.get(`http://localhost:3001/tills/cashier/${authState.userId}`, {
+          headers: { accessToken: localStorage.getItem('accessToken') }
+        });
+
+        if (response.data.code === 200 && response.data.entity) {
+          setCashierTill(response.data.entity);
+          // Auto-set sacco from till
+          setForm(prev => ({
+            ...prev,
+            saccoId: response.data.entity.saccoId,
+            saccoName: response.data.entity.sacco?.saccoName || ""
+          }));
+        } else {
+          showMessage("No till found for this cashier", "error");
+        }
+      } catch (error) {
+        console.error("Error loading cashier till:", error);
+        showMessage("Error loading cashier till information", "error");
+      }
+    };
+
+    loadCashierTill();
+  }, [authState, showMessage]);
+
+
+  // Set transaction ID when component mounts
+  useEffect(() => {
+    setForm(prev => ({ ...prev, transactionId: generateTransactionId() }));
+  }, []);
+
+  const save = async (e) => {
+    e.preventDefault();
+    
+    if (!cashierTill) {
+      showMessage("Cashier till information not found", "error");
+      return;
+    }
+
+    if (!form.saccoId || !form.accountId || !form.amount) {
+      showMessage("Please fill in all required fields", "error");
+      return;
+    }
+
+    try {
+      setSaving(true);
+      
+      // Prepare transaction data for double-entry
+      const transactionData = {
+        saccoId: form.saccoId,
+        amount: parseFloat(form.amount),
+        remarks: form.remarks,
+        status: form.status,
+        transactionType: form.transactionType,
+        memberAccountId: form.accountId,
+        tillGlAccountId: cashierTill.glAccountId
+      };
+
+      const response = await axios.post("http://localhost:3001/transactions/cash", transactionData, {
+        headers: { accessToken: localStorage.getItem('accessToken') }
+      });
+
+      if (response.data.code === 201) {
+        showMessage("Cash transaction created successfully", "success");
+        history.push("/transactions");
+      } else {
+        showMessage(response.data.message || "Error creating transaction", "error");
+      }
+    } catch (error) {
+      console.error("Error saving cash transaction:", error);
+      showMessage(error.response?.data?.message || "Error creating transaction", "error");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleSaccoSelect = (sacco) => {
+    setForm(prev => ({
+      ...prev,
+      saccoId: sacco.saccoId,
+      saccoName: sacco.saccoName
+    }));
+    setIsSaccoModalOpen(false);
+  };
+
+  const handleAccountSelect = (account) => {
+    setForm(prev => ({
+      ...prev,
+      accountId: account.accountId,
+      accountName: `${account.member?.firstName || ''} ${account.member?.lastName || ''} - ${account.product?.productName || ''}`.trim()
+    }));
+    setIsAccountModalOpen(false);
+  };
+
+  // Show loading state only when authentication is still loading
+  if (isLoading) {
+    return (
+      <DashboardWrapper>
+        <div style={{ display: "flex", justifyContent: "center", alignItems: "center", height: "200px" }}>
+          <div>Loading...</div>
+        </div>
+      </DashboardWrapper>
+    );
+  }
+
+  // Check if user has permission to view cash transaction module
+  if (!canView(PERMISSIONS.CASH_TRANSACTION_MAINTENANCE)) {
+    return (
+      <DashboardWrapper>
+        <div style={{ 
+          display: "flex", 
+          flexDirection: "column",
+          justifyContent: "center", 
+          alignItems: "center", 
+          height: "300px",
+          textAlign: "center",
+          padding: "20px"
+        }}>
+          <div style={{ 
+            fontSize: "24px", 
+            color: "#e74c3c", 
+            marginBottom: "16px",
+            fontWeight: "600"
+          }}>
+            Access Denied
+          </div>
+          <div style={{ 
+            fontSize: "16px", 
+            color: "#666", 
+            marginBottom: "8px"
+          }}>
+            You don't have permission to access the Cash Transaction module.
+          </div>
+          <div style={{ 
+            fontSize: "14px", 
+            color: "#999"
+          }}>
+            Please contact your administrator to request access to this feature.
+          </div>
+        </div>
+      </DashboardWrapper>
+    );
+  }
+
+  // Check if user has permission to add cash transactions
+  if (!canAdd(PERMISSIONS.CASH_TRANSACTION_MAINTENANCE)) {
+    return (
+      <DashboardWrapper>
+        <div style={{ 
+          display: "flex", 
+          flexDirection: "column",
+          justifyContent: "center", 
+          alignItems: "center", 
+          height: "300px",
+          textAlign: "center",
+          padding: "20px"
+        }}>
+          <div style={{ 
+            fontSize: "24px", 
+            color: "#e74c3c", 
+            marginBottom: "16px",
+            fontWeight: "600"
+          }}>
+            Permission Denied
+          </div>
+          <div style={{ 
+            fontSize: "16px", 
+            color: "#666", 
+            marginBottom: "8px"
+          }}>
+            You can view cash transactions but don't have permission to create new ones.
+          </div>
+          <div style={{ 
+            fontSize: "14px", 
+            color: "#999"
+          }}>
+            Please contact your administrator to request permission to add cash transactions.
+          </div>
+        </div>
+      </DashboardWrapper>
+    );
+  }
+
+  // Check if user is a Cashier (role-based check)
+  if (authState.role !== 'Cashier') {
+    return (
+      <DashboardWrapper>
+        <div style={{ 
+          display: "flex", 
+          flexDirection: "column",
+          justifyContent: "center", 
+          alignItems: "center", 
+          height: "300px",
+          textAlign: "center",
+          padding: "20px"
+        }}>
+          <div style={{ 
+            fontSize: "24px", 
+            color: "#e74c3c", 
+            marginBottom: "16px",
+            fontWeight: "600"
+          }}>
+            Role Restriction
+          </div>
+          <div style={{ 
+            fontSize: "16px", 
+            color: "#666", 
+            marginBottom: "8px"
+          }}>
+            This feature is only available for users with the Cashier role.
+          </div>
+          <div style={{ 
+            fontSize: "14px", 
+            color: "#999"
+          }}>
+            Your current role: <strong>{authState.role}</strong>
+          </div>
+        </div>
+      </DashboardWrapper>
+    );
+  }
+
+  // Show loading state while fetching cashier till information
+  if (!cashierTill) {
+    return (
+      <DashboardWrapper>
+        <div style={{ 
+          display: "flex", 
+          flexDirection: "column",
+          justifyContent: "center", 
+          alignItems: "center", 
+          height: "300px",
+          textAlign: "center",
+          padding: "20px"
+        }}>
+          <div style={{ 
+            fontSize: "20px", 
+            color: "#f39c12", 
+            marginBottom: "16px",
+            fontWeight: "600"
+          }}>
+            Loading Cashier Information...
+          </div>
+          <div style={{ 
+            fontSize: "14px", 
+            color: "#999"
+          }}>
+            Please wait while we load your till information.
+          </div>
+        </div>
+      </DashboardWrapper>
+    );
+  }
+
+  return (
+    <DashboardWrapper>
+      <header className="header">
+        <div className="header__left">
+          <button className="iconBtn" onClick={() => history.push("/transactions")} title="Back" aria-label="Back" style={{ marginRight: 8 }}>
+            <FiArrowLeft className="icon" style={{ fontWeight: "bolder" }}/>
+          </button>
+          <div className="greeting">Add Cash Transaction</div>
+        </div>
+      </header>
+
+      <main className="dashboard__content">
+        <form className="card" onSubmit={save} style={{ display: "grid", gap: 12, padding: 16 }}>
+          {/* Transaction ID and Transaction Name at the top */}
+          <div style={{ 
+            display: "grid", 
+            gridTemplateColumns: "1fr auto", 
+            gap: "20px",
+            marginBottom: "12px",
+            alignItems: "start"
+          }}>
+            <div style={{ display: "grid", gap: "12px" }}>
+              <label>
+                Transaction ID
+                <input className="inputa"
+                  value={form.transactionId}
+                  onChange={e => setForm({ ...form, transactionId: e.target.value })}
+                  required
+                  disabled={true}
+                />
+              </label>
+              <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                <span style={{ fontWeight: "600", color: "var(--primary-700)", minWidth: "60px" }}>
+                  Status:
+                </span>
+                <div 
+                  style={{
+                    display: "inline-block",
+                    padding: "6px 12px",
+                    borderRadius: "16px",
+                    fontSize: "12px",
+                    fontWeight: "600",
+                    textTransform: "uppercase",
+                    letterSpacing: "0.5px",
+                    backgroundColor: 
+                      form.status === "Approved" ? "rgba(16, 185, 129, 0.2)" :
+                      form.status === "Pending" ? "rgba(6, 182, 212, 0.2)" :
+                      form.status === "Returned" ? "rgba(249, 115, 22, 0.2)" :
+                      form.status === "Rejected" ? "rgba(239, 68, 68, 0.2)" :
+                      "rgba(107, 114, 128, 0.2)",
+                    color: 
+                      form.status === "Approved" ? "#059669" :
+                      form.status === "Pending" ? "#0891b2" :
+                      form.status === "Returned" ? "#ea580c" :
+                      form.status === "Rejected" ? "#dc2626" :
+                      "#6b7280",
+                    border: `1px solid ${
+                      form.status === "Approved" ? "rgba(16, 185, 129, 0.3)" :
+                      form.status === "Pending" ? "rgba(6, 182, 212, 0.3)" :
+                      form.status === "Returned" ? "rgba(249, 115, 22, 0.3)" :
+                      form.status === "Rejected" ? "rgba(239, 68, 68, 0.3)" :
+                      "rgba(107, 114, 128, 0.3)"
+                    }`
+                  }}
+                >
+                  {form.status || "Pending"}
+                </div>
+              </div>
+            </div>
+          </div> 
+
+          <hr style={{ margin: "24px 0", border: "none", borderTop: "1px solid #e0e0e0" }} />
+
+          {/* Cashier Till Information */}
+          <div style={{ 
+            padding: "16px", 
+            backgroundColor: "#f8f9fa", 
+            borderRadius: "8px", 
+            marginBottom: "16px" 
+          }}>
+            <h3 style={{ margin: "0 0 8px 0", fontSize: "14px", fontWeight: "600" }}>Cashier Till Information</h3>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", fontSize: "14px" }}>
+              <div><strong>Till:</strong> {cashierTill.tillName}</div>
+              <div><strong>GL Account:</strong> {cashierTill.glAccount?.accountName}</div>
+            </div>
+          </div>
+
+          <div className="grid2">
+            <label>Sacco
+              <div className="role-input-wrapper">
+                <input 
+                  type="text"
+                  className="input" 
+                  value={form.saccoName} 
+                  onChange={e => setForm({ ...form, saccoName: e.target.value })} 
+                  placeholder="Select a sacco"
+                  readOnly
+                  required
+                />
+                <button
+                  type="button"
+                  className="role-search-btn"
+                  onClick={() => setIsSaccoModalOpen(true)}
+                  title="Search saccos"
+                >
+                  <FiSearch />
+                </button>
+              </div>
+              {form.saccoId && form.saccoId !== 'SYSTEM' && (
+                <small style={{ color: 'var(--primary-500)', fontSize: '12px', marginTop: '4px', display: 'block' }}>
+                  SACCO ID: {form.saccoId}
+                </small>
+              )}
+            </label>
+            <label>Transaction Type
+              <select
+                className="input"
+                value={form.transactionType}
+                onChange={e => setForm({ ...form, transactionType: e.target.value })}
+                required
+              >
+                <option value="credit">Credit (Member Deposit)</option>
+                <option value="debit">Debit (Member Withdrawal)</option>
+              </select>
+            </label>
+            <label>Member Account
+              <div className="role-input-wrapper">
+                <input
+                  className="input"
+                  value={form.accountName}
+                  placeholder="Select Member Account"
+                  readOnly
+                  required
+                />
+                <button
+                  type="button"
+                  className="role-search-btn"
+                  onClick={() => setIsAccountModalOpen(true)}
+                  title="Search accounts"
+                >
+                  <FiSearch />
+                </button>
+              </div>
+            </label>
+            <label>Amount<input className="input" type="number" step="0.01" min="0" value={form.amount} onChange={e => setForm({ ...form, amount: e.target.value })} required placeholder="Enter amount" /></label>
+          </div>
+          
+          {/* Remarks */}
+          <div style={{ marginBottom: "24px" }}>
+            <label>Remarks
+              <textarea
+                className="input"
+                value={form.remarks}
+                onChange={e => setForm({ ...form, remarks: e.target.value })}
+                placeholder="Enter additional remarks (optional)"
+                rows={3}
+                style={{
+                  resize: "vertical"
+                }}
+              />
+            </label>
+          </div>
+
+          {/* Action Buttons */}
+          <div style={{ display: "flex", gap: "12px", justifyContent: "flex-end", marginTop: "24px" }}>
+            <button type="button" className="btn btn--secondary" onClick={() => history.push("/transactions")}>
+              Cancel
+            </button>
+            <button type="submit" className="btn btn--primary" disabled={saving}>
+              {saving ? "Creating..." : "Create Cash Transaction"}
+            </button>
+          </div>
+        </form>
+      </main>
+
+      {/* Modals */}
+      <SaccoLookupModal
+        isOpen={isSaccoModalOpen}
+        onClose={() => setIsSaccoModalOpen(false)}
+        onSelectSacco={handleSaccoSelect}
+      />
+
+      <AccountLookupModal
+        isOpen={isAccountModalOpen}
+        onClose={() => setIsAccountModalOpen(false)}
+        onSelectAccount={handleAccountSelect}
+        saccoId={form.saccoId}
+      />
+    </DashboardWrapper>
+  );
+}
+
+export default CashTransactionForm;

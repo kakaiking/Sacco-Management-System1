@@ -1,0 +1,44 @@
+{
+  "development": {
+    "username": "Realm",
+    "password": "friend",
+    "database": "dream_nest",
+    "host": "CSK-BRNET-00052",
+    "port": 1433,
+    "dialect": "mssql",
+    "dialectOptions": {
+      "options": {
+        "encrypt": false,
+        "trustServerCertificate": true
+      }
+    }
+  },
+  "test": {
+    "username": "Realm",
+    "password": "friend",
+    "database": "dream_nest",
+    "host": "CSK-BRNET-00052",
+    "port": 1433,
+    "dialect": "mssql",
+    "dialectOptions": {
+      "options": {
+        "encrypt": false,
+        "trustServerCertificate": true
+      }
+    }
+  },
+  "production": {
+    "username": "Realm",
+    "password": "friend",
+    "database": "dream_nest",
+    "host": "CSK-BRNET-00052",
+    "port": 1433,
+    "dialect": "mssql",
+    "dialectOptions": {
+      "options": {
+        "encrypt": false,
+        "trustServerCertificate": true
+      }
+    }
+  }
+}

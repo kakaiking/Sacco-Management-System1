@@ -1,0 +1,81 @@
+module.exports = (sequelize, DataTypes) => {
+  const InterestTypes = sequelize.define("InterestTypes", {
+    interestTypeId: {
+      type: DataTypes.STRING,
+      allowNull: false,
+      unique: true,
+    },
+    interestTypeName: {
+      type: DataTypes.STRING,
+      allowNull: false,
+    },
+    description: {
+      type: DataTypes.TEXT,
+      allowNull: true,
+    },
+    saccoId: {
+      type: DataTypes.STRING,
+      allowNull: false,
+      defaultValue: "SYSTEM",
+    },
+    status: {
+      type: DataTypes.STRING,
+      allowNull: false,
+      defaultValue: "Active",
+    },
+    createdOn: {
+      type: DataTypes.DATE,
+      allowNull: false,
+      defaultValue: DataTypes.NOW,
+    },
+    createdBy: {
+      type: DataTypes.STRING,
+      allowNull: true,
+    },
+    modifiedOn: {
+      type: DataTypes.DATE,
+      allowNull: true,
+    },
+    modifiedBy: {
+      type: DataTypes.STRING,
+      allowNull: true,
+    },
+    approvedBy: {
+      type: DataTypes.STRING,
+      allowNull: true,
+    },
+    approvedOn: {
+      type: DataTypes.DATE,
+      allowNull: true,
+    },
+    isDeleted: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      defaultValue: 0,
+    },
+  }, {
+    tableName: 'InterestTypes', // Specify the table name explicitly
+    timestamps: false, // Disable automatic createdAt/updatedAt
+    indexes: [
+      {
+        fields: ['saccoId']
+      }
+    ]
+  });
+
+  // Define associations
+  InterestTypes.associate = (models) => {
+    // InterestTypes belongs to Sacco (without foreign key constraint)
+    InterestTypes.belongsTo(models.Sacco, {
+      foreignKey: 'saccoId',
+      targetKey: 'saccoId',
+      as: 'sacco',
+      constraints: false, // Disable foreign key constraint
+      onDelete: 'NO ACTION',
+      onUpdate: 'NO ACTION'
+    });
+  };
+
+  return InterestTypes;
+};
+
