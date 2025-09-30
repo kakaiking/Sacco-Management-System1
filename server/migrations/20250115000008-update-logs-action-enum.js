@@ -2,21 +2,24 @@
 
 module.exports = {
   up: async (queryInterface, Sequelize) => {
-    // For SQL Server, we need to drop the existing constraint and recreate it
+    // For MySQL, we need to drop the existing constraint and recreate it
     try {
       // Drop the existing check constraint
-      await queryInterface.sequelize.query(`
-        DECLARE @constraint_name NVARCHAR(128)
-        SELECT @constraint_name = name 
-        FROM sys.check_constraints 
-        WHERE parent_object_id = OBJECT_ID('Logs') 
-        AND definition LIKE '%action%'
-        
-        IF @constraint_name IS NOT NULL
-        BEGIN
-          EXEC('ALTER TABLE Logs DROP CONSTRAINT ' + @constraint_name)
-        END
+      const [constraints] = await queryInterface.sequelize.query(`
+        SELECT CONSTRAINT_NAME 
+        FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS 
+        WHERE TABLE_NAME = 'Logs' 
+        AND CONSTRAINT_TYPE = 'CHECK'
+        AND CONSTRAINT_NAME LIKE '%action%'
       `);
+      
+      if (constraints.length > 0) {
+        for (const constraint of constraints) {
+          await queryInterface.sequelize.query(`
+            ALTER TABLE Logs DROP CONSTRAINT ${constraint.CONSTRAINT_NAME}
+          `);
+        }
+      }
 
       // Add the new check constraint with expanded values
       await queryInterface.sequelize.query(`

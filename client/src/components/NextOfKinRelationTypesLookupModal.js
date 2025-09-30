@@ -40,6 +40,12 @@ function NextOfKinRelationTypesLookupModal({ isOpen, onClose, onSelectRelationTy
     setSelectedRelationType(relationType);
   };
 
+  const handleRelationTypeDoubleClick = (relationType) => {
+    setSelectedRelationType(relationType);
+    onSelectRelationType(relationType);
+    onClose();
+  };
+
   const handleConfirmSelection = () => {
     if (selectedRelationType) {
       onSelectRelationType(selectedRelationType);
@@ -98,7 +104,6 @@ function NextOfKinRelationTypesLookupModal({ isOpen, onClose, onSelectRelationTy
                 <thead>
                   <tr>
                     <th>Select</th>
-                    <th>Relation Type ID</th>
                     <th>Relation Type Name</th>
                     <th>Description</th>
                     <th>Status</th>
@@ -107,7 +112,7 @@ function NextOfKinRelationTypesLookupModal({ isOpen, onClose, onSelectRelationTy
                 <tbody>
                   {filteredRelationTypes.length === 0 ? (
                     <tr>
-                      <td colSpan="5" className="no-data">
+                      <td colSpan="4" className="no-data">
                         {searchTerm ? 'No relation types found matching your search' : 'No relation types available'}
                       </td>
                     </tr>
@@ -117,6 +122,7 @@ function NextOfKinRelationTypesLookupModal({ isOpen, onClose, onSelectRelationTy
                         key={relationType.id} 
                         className={selectedRelationType?.id === relationType.id ? 'selected' : ''}
                         onClick={() => handleRelationTypeSelect(relationType)}
+                        onDoubleClick={() => handleRelationTypeDoubleClick(relationType)}
                         style={{ cursor: 'pointer' }}
                       >
                         <td>
@@ -127,7 +133,6 @@ function NextOfKinRelationTypesLookupModal({ isOpen, onClose, onSelectRelationTy
                             onChange={() => handleRelationTypeSelect(relationType)}
                           />
                         </td>
-                        <td>{relationType.relationTypeId}</td>
                         <td>{relationType.relationTypeName}</td>
                         <td>{relationType.description || '-'}</td>
                         <td>

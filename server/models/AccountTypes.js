@@ -51,11 +51,11 @@ module.exports = (sequelize, DataTypes) => {
       as: 'loanProduct'
     });
     
-    // AccountType has many Accounts
-    AccountTypes.hasMany(models.Accounts, {
-      foreignKey: 'accountTypeId',
-      as: 'accounts'
-    });
+    // AccountType has many Accounts (relationship removed since accountTypeId column was removed from Accounts table)
+    // AccountTypes.hasMany(models.Accounts, {
+    //   foreignKey: 'accountTypeId',
+    //   as: 'accounts'
+    // });
     
     // AccountType belongs to Currency
     AccountTypes.belongsTo(models.Currency, {

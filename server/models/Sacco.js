@@ -74,41 +74,10 @@ module.exports = (sequelize, DataTypes) => {
       as: 'logEntries'
     });
 
-    // Sacco has many Genders
-    Sacco.hasMany(models.Gender, {
-      foreignKey: 'saccoId',
-      as: 'genders'
-    });
+    // Gender relationship removed to avoid foreign key constraint issues
 
-    // Sacco has many IdentificationTypes
-    Sacco.hasMany(models.IdentificationTypes, {
-      foreignKey: 'saccoId',
-      as: 'identificationTypes'
-    });
-
-    // Sacco has many MemberCategories
-    Sacco.hasMany(models.MemberCategories, {
-      foreignKey: 'saccoId',
-      as: 'memberCategories'
-    });
-
-    // Sacco has many NextOfKinRelationTypes
-    Sacco.hasMany(models.NextOfKinRelationTypes, {
-      foreignKey: 'saccoId',
-      as: 'nextOfKinRelationTypes'
-    });
-
-    // Sacco has many InterestCalculationRules
-    Sacco.hasMany(models.InterestCalculationRules, {
-      foreignKey: 'saccoId',
-      as: 'interestCalculationRules'
-    });
-
-    // Sacco has many InterestTypes
-    Sacco.hasMany(models.InterestTypes, {
-      foreignKey: 'saccoId',
-      as: 'interestTypes'
-    });
+    // Lookup table relationships removed to avoid foreign key constraint issues
+    // These models use saccoId for logical grouping only
 
     // Sacco has many GLAccounts
     Sacco.hasMany(models.GLAccounts, {

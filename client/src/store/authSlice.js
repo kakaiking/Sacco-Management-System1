@@ -9,7 +9,7 @@ export const checkAuth = createAsyncThunk(
       const token = localStorage.getItem('accessToken');
       
       if (!token) {
-        return { username: '', id: 0, status: false };
+        return { username: '', id: 0, userId: '', role: '', saccoId: '', branchId: '', status: false };
       }
 
       const response = await axios.get('http://localhost:3001/auth/auth', {
@@ -20,19 +20,23 @@ export const checkAuth = createAsyncThunk(
 
       if (response.data.error) {
         localStorage.removeItem('accessToken');
-        return { username: '', id: 0, status: false };
+        return { username: '', id: 0, userId: '', role: '', saccoId: '', branchId: '', status: false };
       }
 
       return {
         username: response.data.username,
         id: response.data.id,
+        userId: response.data.userId,
+        role: response.data.role,
+        saccoId: response.data.saccoId,
+        branchId: response.data.branchId,
         status: true,
       };
     } catch (error) {
       // Only clear token if it's actually invalid (401/403), not network errors
       if (error.response && (error.response.status === 401 || error.response.status === 403)) {
         localStorage.removeItem('accessToken');
-        return { username: '', id: 0, status: false };
+        return { username: '', id: 0, userId: '', role: '', saccoId: '', branchId: '', status: false };
       }
       
       // For network errors, reject with the error
@@ -61,6 +65,10 @@ export const loginUser = createAsyncThunk(
       return {
         username: response.data.username,
         id: response.data.id,
+        userId: response.data.userId,
+        role: response.data.role,
+        saccoId: response.data.saccoId,
+        branchId: response.data.branchId,
         status: true,
       };
     } catch (error) {
@@ -75,6 +83,10 @@ const authSlice = createSlice({
   initialState: {
     username: '',
     id: 0,
+    userId: '',
+    role: '',
+    saccoId: '',
+    branchId: '',
     status: false,
     isLoading: true,
     error: null,
@@ -84,6 +96,10 @@ const authSlice = createSlice({
       localStorage.removeItem('accessToken');
       state.username = '';
       state.id = 0;
+      state.userId = '';
+      state.role = '';
+      state.saccoId = '';
+      state.branchId = '';
       state.status = false;
       state.error = null;
     },
@@ -105,6 +121,10 @@ const authSlice = createSlice({
         state.isLoading = false;
         state.username = action.payload.username;
         state.id = action.payload.id;
+        state.userId = action.payload.userId;
+        state.role = action.payload.role;
+        state.saccoId = action.payload.saccoId;
+        state.branchId = action.payload.branchId;
         state.status = action.payload.status;
         state.error = null;
       })
@@ -112,6 +132,10 @@ const authSlice = createSlice({
         state.isLoading = false;
         state.username = '';
         state.id = 0;
+        state.userId = '';
+        state.role = '';
+        state.saccoId = '';
+        state.branchId = '';
         state.status = false;
         state.error = action.payload;
       })
@@ -124,6 +148,10 @@ const authSlice = createSlice({
         state.isLoading = false;
         state.username = action.payload.username;
         state.id = action.payload.id;
+        state.userId = action.payload.userId;
+        state.role = action.payload.role;
+        state.saccoId = action.payload.saccoId;
+        state.branchId = action.payload.branchId;
         state.status = action.payload.status;
         state.error = null;
       })
@@ -131,6 +159,10 @@ const authSlice = createSlice({
         state.isLoading = false;
         state.username = '';
         state.id = 0;
+        state.userId = '';
+        state.role = '';
+        state.saccoId = '';
+        state.branchId = '';
         state.status = false;
         state.error = action.payload;
       });

@@ -69,7 +69,12 @@ module.exports = (sequelize, DataTypes) => {
   });
 
   Logs.associate = (models) => {
-    // Associations can be added here if needed
+    // Association with Sacco
+    Logs.belongsTo(models.Sacco, {
+      foreignKey: 'saccoId',
+      targetKey: 'saccoId',
+      as: 'sacco'
+    });
   };
 
   return Logs;

@@ -16,5 +16,15 @@ module.exports = (sequelize, DataTypes) => {
     isDeleted: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 0 },
   });
 
+  // Define associations
+  Charges.associate = (models) => {
+    // Charges belongs to Sacco
+    Charges.belongsTo(models.Sacco, {
+      foreignKey: 'saccoId',
+      targetKey: 'saccoId',
+      as: 'sacco'
+    });
+  };
+
   return Charges;
 };

@@ -6,6 +6,8 @@ export const AuthContext = createContext({
     id: 0,
     userId: "",
     role: "",
+    saccoId: "",
+    branchId: "",
     permissions: {},
     status: false,
   },

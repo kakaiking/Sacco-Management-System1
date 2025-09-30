@@ -65,14 +65,12 @@ module.exports = (sequelize, DataTypes) => {
 
   // Define associations
   InterestCalculationRules.associate = (models) => {
-    // InterestCalculationRules belongs to Sacco (without foreign key constraint)
+    // Define association with Sacco without foreign key constraint
     InterestCalculationRules.belongsTo(models.Sacco, {
       foreignKey: 'saccoId',
       targetKey: 'saccoId',
       as: 'sacco',
-      constraints: false, // Disable foreign key constraint
-      onDelete: 'NO ACTION',
-      onUpdate: 'NO ACTION'
+      constraints: false // Disable foreign key constraint
     });
   };
 

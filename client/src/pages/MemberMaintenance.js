@@ -289,7 +289,7 @@ function MemberMaintenance() {
                 className="pill" 
                 onClick={() => {
                   frontendLoggingService.logButtonClick("Add Member", "Member", null, "Clicked Add Member button");
-                  history.push("/member/new");
+                  history.push("/member-form/new");
                 }}
                 style={{
                   backgroundColor: "var(--primary-500)",
@@ -540,14 +540,14 @@ function MemberMaintenance() {
                     <td className="actions">
                       <button className="action-btn action-btn--view" onClick={() => {
                         frontendLoggingService.logView("Member", m.id, `${m.firstName} ${m.lastName}`, "Viewed member details");
-                        history.push(`/member/${m.id}`);
+                        history.push(`/member-form/${m.id}`);
                       }} title="View">
                         <FiEye />
                       </button>
                       {canEdit(PERMISSIONS.MEMBER_MAINTENANCE) ? (
                         <button className="action-btn action-btn--edit" onClick={() => {
                           frontendLoggingService.logButtonClick("Edit Member", "Member", m.id, `Clicked Edit button for member: ${m.firstName} ${m.lastName}`);
-                          history.push(`/member/${m.id}?edit=1`);
+                          history.push(`/member-form/${m.id}?edit=1`);
                         }} title="Update">
                           <FiEdit3 />
                         </button>

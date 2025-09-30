@@ -40,6 +40,12 @@ function IdentificationTypesLookupModal({ isOpen, onClose, onSelectIdentificatio
     setSelectedIdentificationType(identificationType);
   };
 
+  const handleIdentificationTypeDoubleClick = (identificationType) => {
+    setSelectedIdentificationType(identificationType);
+    onSelectIdentificationType(identificationType);
+    onClose();
+  };
+
   const handleConfirmSelection = () => {
     if (selectedIdentificationType) {
       onSelectIdentificationType(selectedIdentificationType);
@@ -98,7 +104,6 @@ function IdentificationTypesLookupModal({ isOpen, onClose, onSelectIdentificatio
                 <thead>
                   <tr>
                     <th>Select</th>
-                    <th>ID Type ID</th>
                     <th>ID Type Name</th>
                     <th>Description</th>
                     <th>Status</th>
@@ -107,7 +112,7 @@ function IdentificationTypesLookupModal({ isOpen, onClose, onSelectIdentificatio
                 <tbody>
                   {filteredIdentificationTypes.length === 0 ? (
                     <tr>
-                      <td colSpan="5" className="no-data">
+                      <td colSpan="4" className="no-data">
                         {searchTerm ? 'No identification types found matching your search' : 'No identification types available'}
                       </td>
                     </tr>
@@ -117,6 +122,7 @@ function IdentificationTypesLookupModal({ isOpen, onClose, onSelectIdentificatio
                         key={identificationType.id} 
                         className={selectedIdentificationType?.id === identificationType.id ? 'selected' : ''}
                         onClick={() => handleIdentificationTypeSelect(identificationType)}
+                        onDoubleClick={() => handleIdentificationTypeDoubleClick(identificationType)}
                         style={{ cursor: 'pointer' }}
                       >
                         <td>
@@ -127,7 +133,6 @@ function IdentificationTypesLookupModal({ isOpen, onClose, onSelectIdentificatio
                             onChange={() => handleIdentificationTypeSelect(identificationType)}
                           />
                         </td>
-                        <td>{identificationType.identificationTypeId}</td>
                         <td>{identificationType.identificationTypeName}</td>
                         <td>{identificationType.description || '-'}</td>
                         <td>

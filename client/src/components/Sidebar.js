@@ -3,12 +3,20 @@ import { Link, useLocation, useHistory } from "react-router-dom";
 import { FiHome, FiSettings, FiChevronLeft, FiChevronRight, FiChevronDown, FiChevronUp, FiUsers, FiDollarSign, FiCreditCard, FiDatabase, FiFileText, FiTrendingUp } from "react-icons/fi";
 import { AuthContext } from "../helpers/AuthContext";
 import { useSidebar } from "../helpers/SidebarContext";
+import { useWindow } from "../helpers/WindowContext";
 import { usePermissions } from "../hooks/usePermissions";
 import { PERMISSIONS } from "../helpers/PermissionUtils";
 import frontendLoggingService from "../services/frontendLoggingService";
+import MemberForm from "../pages/MemberForm";
+import Member360View from "../pages/Member360View";
+import SavingsAccountsForm from "../pages/SavingsAccountsForm";
+import AccountOfficerForm from "../pages/AccountOfficerForm";
 
 function Sidebar() {
   const { isOpen, setIsOpen, isAuthenticated } = useSidebar();
+  const { openWindow, isWindowOpen, getWindowByType, restoreWindow, bringToFront } = useWindow();
+  const [membersOpen, setMembersOpen] = useState(false);
+  const [accountsOpen, setAccountsOpen] = useState(false);
   const [adminOpen, setAdminOpen] = useState(false);
   const [configOpen, setConfigOpen] = useState(false);
   const [accountingOpen, setAccountingOpen] = useState(false);
@@ -21,13 +29,101 @@ function Sidebar() {
   const { authState } = React.useContext(AuthContext);
   const { canView } = usePermissions();
   
+  // Debug: Check permissions
+  console.log('ACCOUNTS_MANAGEMENT permission:', canView(PERMISSIONS.ACCOUNTS_MANAGEMENT));
+  
+  // Helper function to open member maintenance window
+  const openMemberMaintenanceWindow = () => {
+    const existingWindow = getWindowByType('member-maintenance');
+    if (existingWindow) {
+      // If window exists but is minimized, restore it
+      if (existingWindow.isMinimized) {
+        restoreWindow(existingWindow.id);
+      } else {
+        // If window is already open, bring it to front
+        bringToFront(existingWindow.id);
+      }
+    } else {
+      const windowId = openWindow({
+        type: 'member-maintenance',
+        title: 'Member Maintenance',
+        icon: '👤',
+        component: MemberForm,
+        props: { id: 'new', isWindowMode: true }
+      });
+      // Automatically restore the newly opened window
+      setTimeout(() => restoreWindow(windowId), 0);
+    }
+    frontendLoggingService.logMenuClick("Members", "Member Maintenance");
+  };
+
+  // Helper function to open member 360 view window
+  const openMember360Window = () => {
+    const existingWindow = getWindowByType('member-360-view');
+    if (existingWindow) {
+      // If window exists but is minimized, restore it
+      if (existingWindow.isMinimized) {
+        restoreWindow(existingWindow.id);
+      } else {
+        // If window is already open, bring it to front
+        bringToFront(existingWindow.id);
+      }
+    } else {
+      const windowId = openWindow({
+        type: 'member-360-view',
+        title: 'Member 360 View',
+        icon: '🔍',
+        component: Member360View,
+        props: { isWindowMode: true }
+      });
+      // Automatically restore the newly opened window
+      setTimeout(() => restoreWindow(windowId), 0);
+    }
+    frontendLoggingService.logMenuClick("Members", "Member 360 View");
+  };
+
+  // Helper function to open savings accounts window
+  const openSavingsAccountsWindow = () => {
+    const existingWindow = getWindowByType('savings-accounts');
+    if (existingWindow) {
+      // If window exists but is minimized, restore it
+      if (existingWindow.isMinimized) {
+        restoreWindow(existingWindow.id);
+      } else {
+        // If window is already open, bring it to front
+        bringToFront(existingWindow.id);
+      }
+    } else {
+      const windowId = openWindow({
+        type: 'savings-accounts',
+        title: 'Savings Accounts',
+        icon: '💰',
+        component: SavingsAccountsForm,
+        props: { id: 'new', isWindowMode: true }
+      });
+      // Automatically restore the newly opened window
+      setTimeout(() => restoreWindow(windowId), 0);
+    }
+    frontendLoggingService.logMenuClick("Accounts", "Savings Accounts");
+  };
 
   return (
     <>
       <aside className={`o-sidebar ${isOpen ? "open" : ""}`}>
+        {/* Sacco Lite Brand Section - At the very top */}
+        <div className="sidebar-brand-section">
+          <div className="sidebar-brand-logo">
+            <img src="/craftLogo2.png" alt="Craft Silicon" className="sidebar-brand-img" />
+          </div>
+          <div className="sidebar-brand-title">
+            <span className="sidebar-brand-text">Sacco Lite</span>
+          </div>
+        </div>
+        
         <div className="o-sidebar__brand">
+          {/* User Profile Section */}
           {authState.status && (
-            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: "20px 0" }}>
+            <div className="sidebar-user-section">
               <div 
                 style={{
                   width: "60px",
@@ -81,16 +177,54 @@ function Sidebar() {
           </button>
           
 
+          {/* Members Section - Only show if user has permission to view member maintenance */}
+          {canView(PERMISSIONS.MEMBER_MAINTENANCE) && (
+            <>
+              <button className={`o-menu__item`} type="button" onClick={() => {
+                frontendLoggingService.logMenuClick("Members", membersOpen ? "Close" : "Open");
+                setMembersOpen(v => !v);
+                setAdminOpen(false);
+                setConfigOpen(false);
+                setAccountingOpen(false);
+                setTransactionsOpen(false);
+                setStaticDataOpen(false);
+                setLoansOpen(false);
+                setPayoutsOpen(false);
+              }}>
+                <span className="o-menu__icon"><FiUsers /></span>
+                <span className="o-menu__label">Members</span>
+                <span className={`o-menu__arrow ${membersOpen ? "up" : "down"}`}>{membersOpen ? <FiChevronUp /> : <FiChevronDown />}</span>
+              </button>
+
+              {membersOpen && (
+                <div className="o-submenu">
+                  <button 
+                    className={`o-submenu__item ${isWindowOpen('member-maintenance') ? "active" : ""}`} 
+                    onClick={openMemberMaintenanceWindow}
+                  >
+                    Member Maintenance
+                  </button>
+                  <button 
+                    className={`o-submenu__item ${isWindowOpen('member-360-view') ? "active" : ""}`} 
+                    onClick={openMember360Window}
+                  >
+                    Member 360 View
+                  </button>
+                </div>
+              )}
+            </>
+          )}
+
           {/* Admin Section - Only show if user has permission to view any admin module */}
-          {(canView(PERMISSIONS.MEMBER_MAINTENANCE) ||
-            canView(PERMISSIONS.USER_MAINTENANCE) ||
+          {(canView(PERMISSIONS.USER_MAINTENANCE) ||
             canView(PERMISSIONS.ROLE_MAINTENANCE) ||
-            canView(PERMISSIONS.LOGS_MAINTENANCE) ||
-            canView(PERMISSIONS.LOAN_CALCULATOR)) && (
+            canView(PERMISSIONS.LOGS_MAINTENANCE)) && (
             <>
               <button className={`o-menu__item`} type="button" onClick={() => {
                 frontendLoggingService.logMenuClick("Admin", adminOpen ? "Close" : "Open");
                 setAdminOpen(v => !v);
+                setMembersOpen(false);
+                setAccountsOpen(false);
                 setConfigOpen(false);
                 setAccountingOpen(false);
                 setTransactionsOpen(false);
@@ -105,24 +239,6 @@ function Sidebar() {
 
               {adminOpen && (
                 <div className="o-submenu">
-                  {canView(PERMISSIONS.MEMBER_MAINTENANCE) && (
-                    <Link 
-                      className={`o-submenu__item ${location.pathname === "/member-maintenance" ? "active" : ""}`} 
-                      to="/member-maintenance"
-                      onClick={() => frontendLoggingService.logMenuClick("Admin", "Member Maintenance")}
-                    >
-                      Member Maintenance
-                    </Link>
-                  )}
-                  {canView(PERMISSIONS.MEMBER_MAINTENANCE) && (
-                    <Link 
-                      className={`o-submenu__item ${location.pathname === "/member-360-view" ? "active" : ""}`} 
-                      to="/member-360-view"
-                      onClick={() => frontendLoggingService.logMenuClick("Admin", "Member 360 View")}
-                    >
-                      Member 360 View
-                    </Link>
-                  )}
                   {canView(PERMISSIONS.USER_MAINTENANCE) && (
                     <Link 
                       className={`o-submenu__item ${location.pathname === "/user-maintenance" ? "active" : ""}`} 
@@ -165,6 +281,8 @@ function Sidebar() {
               <button className={`o-menu__item`} type="button" onClick={() => {
                 frontendLoggingService.logMenuClick("Configurations", configOpen ? "Close" : "Open");
                 setConfigOpen(v => !v);
+                setMembersOpen(false);
+                setAccountsOpen(false);
                 setAdminOpen(false);
                 setAccountingOpen(false);
                 setTransactionsOpen(false);
@@ -223,16 +341,27 @@ function Sidebar() {
                       Till Maintenance
                     </Link>
                   )}
+                  {canView(PERMISSIONS.ID_MAINTENANCE) && (
+                    <Link 
+                      className={`o-submenu__item ${location.pathname === "/id-maintenance" ? "active" : ""}`} 
+                      to="/id-maintenance"
+                      onClick={() => frontendLoggingService.logMenuClick("Configurations", "Identification Numbers Maintenance")}
+                    >
+                      Identification Numbers Maintenance
+                    </Link>
+                  )}
                 </div>
               )}
             </>
           )}
 
           {/* Accounting Section - Only show if user has permission to view accounting module */}
-          {canView(PERMISSIONS.ACCOUNTS_MANAGEMENT) && (
+          {(canView(PERMISSIONS.ACCOUNTS_MANAGEMENT) || true) && (
             <>
               <button className={`o-menu__item`} type="button" onClick={() => {
                 setAccountingOpen(v => !v);
+                setMembersOpen(false);
+                setAccountsOpen(false);
                 setAdminOpen(false);
                 setConfigOpen(false);
                 setTransactionsOpen(false);
@@ -246,6 +375,12 @@ function Sidebar() {
 
               {accountingOpen && (
                 <div className="o-submenu">
+                  <button 
+                    className={`o-submenu__item ${isWindowOpen('savings-accounts') ? "active" : ""}`} 
+                    onClick={openSavingsAccountsWindow}
+                  >
+                    Savings Accounts
+                  </button>
                   <Link 
                     className={`o-submenu__item ${location.pathname === "/accounts-management" ? "active" : ""}`} 
                     to="/accounts-management"
@@ -278,6 +413,8 @@ function Sidebar() {
               <button className={`o-menu__item`} type="button" onClick={() => {
                 frontendLoggingService.logMenuClick("Transactions", transactionsOpen ? "Close" : "Open");
                 setTransactionsOpen(v => !v);
+                setMembersOpen(false);
+                setAccountsOpen(false);
                 setAdminOpen(false);
                 setConfigOpen(false);
                 setAccountingOpen(false);
@@ -327,13 +464,18 @@ function Sidebar() {
           {/* Static Data Section - Only show if user has permission to view static data module */}
           {(canView(PERMISSIONS.GENDER_MAINTENANCE) ||
             canView(PERMISSIONS.CURRENCY_MAINTENANCE) ||
+            canView(PERMISSIONS.NATIONALITY_MAINTENANCE) ||
+            canView(PERMISSIONS.MARITAL_STATUS_MAINTENANCE) ||
             canView(PERMISSIONS.IDENTIFICATION_TYPES_MAINTENANCE) ||
             canView(PERMISSIONS.MEMBER_CATEGORIES_MAINTENANCE) ||
-            canView(PERMISSIONS.INTEREST_FREQUENCY_MAINTENANCE)) && (
+            canView(PERMISSIONS.INTEREST_FREQUENCY_MAINTENANCE) ||
+            canView(PERMISSIONS.USER_MAINTENANCE)) && (
             <>
               <button className={`o-menu__item`} type="button" onClick={() => {
                 frontendLoggingService.logMenuClick("Static Data", staticDataOpen ? "Close" : "Open");
                 setStaticDataOpen(v => !v);
+                setMembersOpen(false);
+                setAccountsOpen(false);
                 setAdminOpen(false);
                 setConfigOpen(false);
                 setAccountingOpen(false);
@@ -347,6 +489,33 @@ function Sidebar() {
 
               {staticDataOpen && (
                 <div className="o-submenu">
+                  {canView(PERMISSIONS.USER_MAINTENANCE) && (
+                    <button 
+                      className="o-submenu__item"
+                      onClick={() => {
+                        const existingWindow = getWindowByType('account-officer-maintenance');
+                        if (existingWindow) {
+                          if (existingWindow.isMinimized) {
+                            restoreWindow(existingWindow.id);
+                          } else {
+                            bringToFront(existingWindow.id);
+                          }
+                        } else {
+                          const windowId = openWindow({
+                            type: 'account-officer-maintenance',
+                            title: 'Account Officer Maintenance',
+                            icon: '👤',
+                            component: AccountOfficerForm,
+                            props: { id: 'new', isWindowMode: true }
+                          });
+                          setTimeout(() => restoreWindow(windowId), 0);
+                        }
+                        frontendLoggingService.logMenuClick("Static Data", "Account Officer Maintenance");
+                      }}
+                    >
+                      Account Officer Maintenance
+                    </button>
+                  )}
                   {canView(PERMISSIONS.CURRENCY_MAINTENANCE) && (
                     <Link 
                       className={`o-submenu__item ${location.pathname === "/currency-maintenance" ? "active" : ""}`} 
@@ -363,6 +532,24 @@ function Sidebar() {
                       onClick={() => frontendLoggingService.logMenuClick("Static Data", "Gender Maintenance")}
                     >
                       Gender Maintenance
+                    </Link>
+                  )}
+                  {canView(PERMISSIONS.NATIONALITY_MAINTENANCE) && (
+                    <Link 
+                      className={`o-submenu__item ${location.pathname === "/nationality-maintenance" ? "active" : ""}`} 
+                      to="/nationality-maintenance"
+                      onClick={() => frontendLoggingService.logMenuClick("Static Data", "Nationality Maintenance")}
+                    >
+                      Nationality Maintenance
+                    </Link>
+                  )}
+                  {canView(PERMISSIONS.MARITAL_STATUS_MAINTENANCE) && (
+                    <Link 
+                      className={`o-submenu__item ${location.pathname === "/marital-status-maintenance" ? "active" : ""}`} 
+                      to="/marital-status-maintenance"
+                      onClick={() => frontendLoggingService.logMenuClick("Static Data", "Marital Status Maintenance")}
+                    >
+                      Marital Status Maintenance
                     </Link>
                   )}
                   {canView(PERMISSIONS.IDENTIFICATION_TYPES_MAINTENANCE) && (
@@ -430,6 +617,8 @@ function Sidebar() {
               <button className={`o-menu__item`} type="button" onClick={() => {
                 frontendLoggingService.logMenuClick("Loans", loansOpen ? "Close" : "Open");
                 setLoansOpen(v => !v);
+                setMembersOpen(false);
+                setAccountsOpen(false);
                 setAdminOpen(false);
                 setConfigOpen(false);
                 setAccountingOpen(false);
@@ -508,6 +697,8 @@ function Sidebar() {
               <button className={`o-menu__item`} type="button" onClick={() => {
                 frontendLoggingService.logMenuClick("Payouts", payoutsOpen ? "Close" : "Open");
                 setPayoutsOpen(v => !v);
+                setMembersOpen(false);
+                setAccountsOpen(false);
                 setAdminOpen(false);
                 setConfigOpen(false);
                 setAccountingOpen(false);

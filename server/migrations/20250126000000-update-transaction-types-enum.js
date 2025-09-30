@@ -2,21 +2,24 @@
 
 module.exports = {
   up: async (queryInterface, Sequelize) => {
-    // For SQL Server, we need to drop the existing CHECK constraint and create a new one
+    // For MySQL, we need to drop the existing CHECK constraint and create a new one
     // First, drop the existing constraint if it exists
     try {
-      await queryInterface.sequelize.query(`
-        DECLARE @constraint_name NVARCHAR(128)
-        SELECT @constraint_name = name 
-        FROM sys.check_constraints 
-        WHERE parent_object_id = OBJECT_ID('Transactions') 
-        AND definition LIKE '%type%'
-        
-        IF @constraint_name IS NOT NULL
-        BEGIN
-          EXEC('ALTER TABLE Transactions DROP CONSTRAINT ' + @constraint_name)
-        END
+      const [constraints] = await queryInterface.sequelize.query(`
+        SELECT CONSTRAINT_NAME 
+        FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS 
+        WHERE TABLE_NAME = 'Transactions' 
+        AND CONSTRAINT_TYPE = 'CHECK'
+        AND CONSTRAINT_NAME LIKE '%type%'
       `);
+      
+      if (constraints.length > 0) {
+        for (const constraint of constraints) {
+          await queryInterface.sequelize.query(`
+            ALTER TABLE Transactions DROP CONSTRAINT ${constraint.CONSTRAINT_NAME}
+          `);
+        }
+      }
     } catch (error) {
       console.log('No existing constraint found or error dropping it:', error.message);
     }

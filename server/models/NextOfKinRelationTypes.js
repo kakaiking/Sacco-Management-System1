@@ -65,14 +65,12 @@ module.exports = (sequelize, DataTypes) => {
 
   // Define associations
   NextOfKinRelationTypes.associate = (models) => {
-    // NextOfKinRelationTypes belongs to Sacco (without foreign key constraint)
+    // Define association with Sacco without foreign key constraint
     NextOfKinRelationTypes.belongsTo(models.Sacco, {
       foreignKey: 'saccoId',
       targetKey: 'saccoId',
       as: 'sacco',
-      constraints: false, // Disable foreign key constraint
-      onDelete: 'NO ACTION',
-      onUpdate: 'NO ACTION'
+      constraints: false // Disable foreign key constraint
     });
   };
 

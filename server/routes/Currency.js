@@ -16,7 +16,16 @@ const generateCurrencyId = () => {
 router.get("/", validateToken, logViewOperation("Currency"), async (req, res) => {
   try {
     const { status, q } = req.query;
+    const userSaccoId = req.user?.saccoId || 'SYSTEM';
     const whereClause = { isDeleted: 0 };
+    
+    // Include both user's sacco currencies and SYSTEM currencies
+    if (userSaccoId) {
+      whereClause[Op.or] = [
+        { saccoId: userSaccoId },
+        { saccoId: 'SYSTEM' }
+      ];
+    }
     
     if (status) {
       whereClause.status = status;
@@ -46,8 +55,9 @@ router.get("/", validateToken, logViewOperation("Currency"), async (req, res) =>
 router.get("/:id", validateToken, logViewOperation("Currency"), async (req, res) => {
   try {
     const { id } = req.params;
+    const saccoId = req.user?.saccoId || 'SYSTEM';
     const currency = await Currency.findOne({
-      where: { id, isDeleted: 0 }
+      where: { id, saccoId, isDeleted: 0 }
     });
 
     if (!currency) {
@@ -96,6 +106,7 @@ router.post("/", validateToken, logCreateOperation("Currency"), async (req, res)
 
     const currencyData = {
       currencyId: generateCurrencyId(),
+      saccoId: req.user?.saccoId || 'SYSTEM',
       currencyCode: currencyCode.toUpperCase(),
       currencyName,
       symbol,
@@ -234,8 +245,13 @@ router.delete("/:id", validateToken, logDeleteOperation("Currency"), async (req,
 // Get active currencies for lookup
 router.get("/lookup/active", validateToken, async (req, res) => {
   try {
+    const userSaccoId = req.user?.saccoId || 'SYSTEM';
     const currencies = await Currency.findAll({
       where: { 
+        [Op.or]: [
+          { saccoId: userSaccoId },
+          { saccoId: 'SYSTEM' }
+        ],
         status: "Active", 
         isDeleted: 0 
       },

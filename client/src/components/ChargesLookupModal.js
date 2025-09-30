@@ -8,19 +8,6 @@ function ChargesLookupModal({ isOpen, onClose, onSelectCharges, selectedChargeId
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCharges, setSelectedCharges] = useState([]);
 
-  // Initialize selected charges from props
-  useEffect(() => {
-    if (isOpen && selectedChargeIds.length > 0) {
-      // Find charges that match the selected IDs
-      const matchingCharges = charges.filter(charge => 
-        selectedChargeIds.includes(charge.chargeId)
-      );
-      setSelectedCharges(matchingCharges);
-    } else if (isOpen) {
-      setSelectedCharges([]);
-    }
-  }, [isOpen, selectedChargeIds, charges]);
-
   // Fetch charges when modal opens
   useEffect(() => {
     if (isOpen) {
@@ -28,15 +15,36 @@ function ChargesLookupModal({ isOpen, onClose, onSelectCharges, selectedChargeId
     }
   }, [isOpen]);
 
+  // Initialize selected charges from props after charges are loaded
+  useEffect(() => {
+    if (isOpen && charges.length > 0) {
+      if (selectedChargeIds.length > 0) {
+        // Find charges that match the selected IDs
+        const matchingCharges = charges.filter(charge => 
+          selectedChargeIds.includes(charge.chargeId)
+        );
+        setSelectedCharges(matchingCharges);
+      } else {
+        setSelectedCharges([]);
+      }
+    }
+  }, [isOpen, selectedChargeIds, charges]);
+
   const fetchCharges = async () => {
     setLoading(true);
     try {
       const response = await axios.get('http://localhost:3001/charges', {
         headers: { accessToken: localStorage.getItem('accessToken') }
       });
+      console.log('Charges fetched successfully:', response.data);
       setCharges(response.data || []);
     } catch (error) {
       console.error('Error fetching charges:', error);
+      if (error.response) {
+        console.error('Response status:', error.response.status);
+        console.error('Response data:', error.response.data);
+      }
+      setCharges([]);
     } finally {
       setLoading(false);
     }
@@ -239,7 +247,7 @@ function ChargesLookupModal({ isOpen, onClose, onSelectCharges, selectedChargeId
                       const isSelected = selectedCharges.some(selected => selected.chargeId === charge.chargeId);
                       return (
                         <tr 
-                          key={charge.id} 
+                          key={charge.chargeId} 
                           className={isSelected ? 'selected' : ''}
                           onClick={() => handleChargeToggle(charge)}
                           style={{ cursor: 'pointer' }}

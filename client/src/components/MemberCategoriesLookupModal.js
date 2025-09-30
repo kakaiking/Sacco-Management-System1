@@ -54,6 +54,12 @@ function MemberCategoriesLookupModal({ isOpen, onClose, onSelectMemberCategory }
     setSelectedMemberCategory(memberCategory);
   };
 
+  const handleMemberCategoryDoubleClick = (memberCategory) => {
+    setSelectedMemberCategory(memberCategory);
+    onSelectMemberCategory(memberCategory);
+    onClose();
+  };
+
   const handleConfirmSelection = () => {
     if (selectedMemberCategory) {
       onSelectMemberCategory(selectedMemberCategory);
@@ -112,7 +118,6 @@ function MemberCategoriesLookupModal({ isOpen, onClose, onSelectMemberCategory }
                 <thead>
                   <tr>
                     <th>Select</th>
-                    <th>Category ID</th>
                     <th>Category Name</th>
                     <th>Description</th>
                     <th>Status</th>
@@ -121,7 +126,7 @@ function MemberCategoriesLookupModal({ isOpen, onClose, onSelectMemberCategory }
                 <tbody>
                   {filteredMemberCategories.length === 0 ? (
                     <tr>
-                      <td colSpan="5" className="no-data">
+                      <td colSpan="4" className="no-data">
                         {searchTerm ? 'No member categories found matching your search' : 'No member categories available'}
                       </td>
                     </tr>
@@ -131,6 +136,7 @@ function MemberCategoriesLookupModal({ isOpen, onClose, onSelectMemberCategory }
                         key={memberCategory.id} 
                         className={selectedMemberCategory?.id === memberCategory.id ? 'selected' : ''}
                         onClick={() => handleMemberCategorySelect(memberCategory)}
+                        onDoubleClick={() => handleMemberCategoryDoubleClick(memberCategory)}
                         style={{ cursor: 'pointer' }}
                       >
                         <td>
@@ -141,7 +147,6 @@ function MemberCategoriesLookupModal({ isOpen, onClose, onSelectMemberCategory }
                             onChange={() => handleMemberCategorySelect(memberCategory)}
                           />
                         </td>
-                        <td>{memberCategory.memberCategoryId}</td>
                         <td>{memberCategory.memberCategoryName}</td>
                         <td>{memberCategory.description || '-'}</td>
                         <td>

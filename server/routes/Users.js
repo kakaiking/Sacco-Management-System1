@@ -81,7 +81,7 @@ const generateUserId = () => {
 // Create new user (admin only)
 router.post("/", validateToken, logCreateOperation("User"), async (req, res) => {
   try {
-    const { username, email, firstName, lastName, phoneNumber, role } = req.body;
+    const { username, email, firstName, lastName, phoneNumber, role, branchId } = req.body;
 
     if (!username || !email || !firstName || !lastName) {
       return res.status(400).json({ error: "Username, email, first name, and last name are required" });
@@ -100,6 +100,7 @@ router.post("/", validateToken, logCreateOperation("User"), async (req, res) => 
       lastName,
       phoneNumber: phoneNumber || null,
       role: role || "User",
+      branchId: branchId || null,
       status: "Pending Password",
       passwordResetToken,
       passwordResetExpires,
@@ -162,6 +163,7 @@ router.post("/", validateToken, logCreateOperation("User"), async (req, res) => 
         email: user.email,
         firstName: user.firstName,
         lastName: user.lastName,
+        branchId: user.branchId,
         status: user.status
       },
       emailSent: emailSent
@@ -199,6 +201,11 @@ router.get("/", validateToken, logViewOperation("User"), async (req, res) => {
     const users = await Users.findAll({
       where: whereClause,
       attributes: { exclude: ['password', 'passwordResetToken'] },
+      include: [{
+        model: require('../models').Branch,
+        as: 'branch',
+        attributes: ['branchId', 'branchName', 'branchLocation']
+      }],
       order: [['createdOn', 'DESC']]
     });
 
@@ -230,6 +237,8 @@ router.get("/auth", validateToken, logViewOperation("User"), async (req, res) =>
       firstName: user.firstName,
       lastName: user.lastName,
       role: user.role,
+      saccoId: user.saccoId || 'SYSTEM',
+      branchId: user.branchId || null,
       status: user.status
     });
   } catch (error) {
@@ -243,7 +252,14 @@ router.get("/:id", validateToken, logViewOperation("User"), async (req, res) => 
   try {
     const { id } = req.params;
     const user = await Users.findByPk(id, {
-      attributes: { exclude: ['password', 'passwordResetToken'] }
+      attributes: { exclude: ['password', 'passwordResetToken'] },
+      include: [
+        {
+          model: require('../models').Branch,
+          as: 'branch',
+          attributes: ['branchId', 'branchName', 'branchLocation']
+        }
+      ]
     });
 
     if (!user) {
@@ -261,7 +277,7 @@ router.get("/:id", validateToken, logViewOperation("User"), async (req, res) => 
 router.put("/:id", validateToken, logUpdateOperation("User"), async (req, res) => {
   try {
     const { id } = req.params;
-    const { username, email, firstName, lastName, phoneNumber, role, status } = req.body;
+    const { username, email, firstName, lastName, phoneNumber, role, status, branchId } = req.body;
 
     const user = await Users.findByPk(id);
     if (!user) {
@@ -276,6 +292,7 @@ router.put("/:id", validateToken, logUpdateOperation("User"), async (req, res) =
       phoneNumber: phoneNumber !== undefined ? phoneNumber : user.phoneNumber,
       role: role || user.role,
       status: status || user.status,
+      branchId: branchId !== undefined ? branchId : user.branchId,
       modifiedBy: req.user.username,
       modifiedOn: new Date()
     });
@@ -289,6 +306,7 @@ router.put("/:id", validateToken, logUpdateOperation("User"), async (req, res) =
         email: user.email,
         firstName: user.firstName,
         lastName: user.lastName,
+        branchId: user.branchId,
         status: user.status
       }
     });
@@ -600,7 +618,7 @@ router.post("/login", logAuthEvent, async (req, res) => {
     }
 
     const accessToken = sign(
-      { username: user.username, id: user.id, userId: user.userId, role: user.role },
+      { username: user.username, id: user.id, userId: user.userId, role: user.role, saccoId: user.saccoId || 'SYSTEM' },
       "importantsecret",
       { expiresIn: "30d" } // Token expires in 30 days
     );
@@ -614,7 +632,7 @@ router.post("/login", logAuthEvent, async (req, res) => {
     console.log("Sacco ID:", user.saccoId || 'SYSTEM');
     console.log("Status:", user.status);
     console.log("Full user data:", JSON.stringify(user.dataValues, null, 2));
-    console.log("Token payload:", JSON.stringify({ username: user.username, id: user.id, userId: user.userId, role: user.role }, null, 2));
+    console.log("Token payload:", JSON.stringify({ username: user.username, id: user.id, userId: user.userId, role: user.role, saccoId: user.saccoId || 'SYSTEM' }, null, 2));
     console.log("=== END LOGIN STATE DATA ===");
     
     res.json({ 
@@ -623,7 +641,8 @@ router.post("/login", logAuthEvent, async (req, res) => {
       id: user.id,
       userId: user.userId,
       role: user.role,
-      saccoId: user.saccoId || 'SYSTEM'
+      saccoId: user.saccoId || 'SYSTEM',
+      branchId: user.branchId || null
     });
   } catch (error) {
     console.error("Login error:", error);

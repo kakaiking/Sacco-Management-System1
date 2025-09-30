@@ -45,14 +45,30 @@ function Login() {
         const rolePermissions = await fetchRolePermissions(response.data.role || "User");
         const userPermissions = getUserPermissions(response.data.role || "User", rolePermissions);
         
-        setAuthState({
+        const authStateData = {
           username: response.data.username,
           id: response.data.id,
           userId: response.data.userId,
           role: response.data.role || "User",
+          saccoId: response.data.saccoId || 'SYSTEM',
+          branchId: response.data.branchId || '',
           permissions: userPermissions,
           status: true,
-        });
+        };
+        
+        // Console log the user state on successful login
+        console.log("=== LOGIN SUCCESS - USER STATE DATA ===");
+        console.log("Username:", authStateData.username);
+        console.log("User ID:", authStateData.id);
+        console.log("User ID (userId):", authStateData.userId);
+        console.log("Role:", authStateData.role);
+        console.log("Sacco ID:", authStateData.saccoId);
+        console.log("Branch ID:", authStateData.branchId);
+        console.log("Status:", authStateData.status);
+        console.log("Permissions:", authStateData.permissions);
+        console.log("Full auth state:", JSON.stringify(authStateData, null, 2));
+        
+        setAuthState(authStateData);
         showMessage(`Welcome back, ${response.data.username}!`, "success");
         history.push("/");
       }

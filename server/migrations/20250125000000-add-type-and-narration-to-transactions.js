@@ -1,28 +1,47 @@
 'use strict';
 
 module.exports = {
-  up: async (queryInterface, Sequelize) => {
-    // Add transaction type field for deposit/withdrawal classification
-    await queryInterface.addColumn('Transactions', 'type', {
+    up: async (queryInterface, Sequelize) => {
+    // Check if columns already exist before adding them
+    const tableDescription = await queryInterface.describeTable('Transactions');
+    
+    if (!tableDescription.type) {
+      await queryInterface.addColumn('Transactions', 'type', {
       type: Sequelize.ENUM('DEPOSIT', 'WITHDRAWAL', 'TRANSFER', 'OTHER'),
       allowNull: true,
       comment: 'Transaction type: DEPOSIT, WITHDRAWAL, TRANSFER, or OTHER'
     });
-
-    // Add narration field for transaction description
-    await queryInterface.addColumn('Transactions', 'narration', {
+    } else {
+      console.log('Column type already exists in Transactions table - skipping');
+    }
+    
+    if (!tableDescription.narration) {
+      await queryInterface.addColumn('Transactions', 'narration', {
       type: Sequelize.TEXT,
       allowNull: true,
       comment: 'Transaction narration/description'
     });
-
-    // Add index for transaction type for better query performance
-    await queryInterface.addIndex('Transactions', ['type']);
+    } else {
+      console.log('Column narration already exists in Transactions table - skipping');
+    }
+    
   },
 
-  down: async (queryInterface, Sequelize) => {
-    // Remove the added columns
-    await queryInterface.removeColumn('Transactions', 'type');
-    await queryInterface.removeColumn('Transactions', 'narration');
+    down: async (queryInterface, Sequelize) => {
+    // Check if columns exist before removing them
+    const tableDescription = await queryInterface.describeTable('Transactions');
+    
+    if (tableDescription.type) {
+      await queryInterface.removeColumn('Transactions', 'type');
+    } else {
+      console.log('Column type does not exist in Transactions table - skipping');
+    }
+    
+    if (tableDescription.narration) {
+      await queryInterface.removeColumn('Transactions', 'narration');
+    } else {
+      console.log('Column narration does not exist in Transactions table - skipping');
+    }
+    
   }
 };

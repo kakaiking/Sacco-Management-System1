@@ -28,6 +28,8 @@ import Profile from "./pages/Profile";
 import ChangePassword from "./pages/ChangePassword";
 import UserMaintenance from "./pages/UserMaintenance";
 import UserForm from "./pages/UserForm";
+import AccountOfficers from "./pages/AccountOfficers";
+import AccountOfficerForm from "./pages/AccountOfficerForm";
 import SetupPassword from "./pages/SetupPassword";
 import LogsManagement from "./pages/LogsManagement";
 import TransactionMaintenance from "./pages/TransactionMaintenance";
@@ -37,6 +39,10 @@ import CashTransactionForm from "./pages/CashTransactionForm";
 import SmartTeller from "./pages/SmartTeller";
 import GenderMaintenance from "./pages/GenderMaintenance";
 import GenderForm from "./pages/GenderForm";
+import NationalityMaintenance from "./pages/NationalityMaintenance";
+import NationalityForm from "./pages/NationalityForm";
+import MaritalStatusMaintenance from "./pages/MaritalStatusMaintenance";
+import MaritalStatusForm from "./pages/MaritalStatusForm";
 import IdentificationTypesMaintenance from "./pages/IdentificationTypesMaintenance";
 import IdentificationTypesForm from "./pages/IdentificationTypesForm";
 import MemberCategoriesMaintenance from "./pages/MemberCategoriesMaintenance";
@@ -65,14 +71,31 @@ import CollateralForm from "./pages/CollateralForm";
 import Member360View from "./pages/Member360View";
 import PayoutsManagement from "./pages/PayoutsManagement";
 import PayoutsForm from "./pages/PayoutsForm";
+import IdMaintenance from "./pages/IdMaintenance";
+import IdForm from "./pages/IdForm";
 
 import { AuthContext } from "./helpers/AuthContext";
 import { SidebarProvider } from "./helpers/SidebarContext";
+import { WindowProvider, useWindow } from "./helpers/WindowContext";
 import NavbarWrapper from "./components/NavbarWrapper";
-import { useState, useEffect, useRef } from "react";
+import WindowManager from "./components/WindowManager";
+import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { FiMaximize, FiMinimize } from "react-icons/fi";
 import { getUserPermissions } from "./helpers/PermissionUtils";
 import { fetchRolePermissions } from "./services/roleService";
+import OrganizationService from "./services/organizationService";
+
+// Component to conditionally render main content based on window state
+const MainContent = ({ children }) => {
+  const { windows } = useWindow();
+  const hasOpenWindows = windows.some(window => !window.isMinimized);
+  
+  return (
+    <div style={{ display: hasOpenWindows ? 'none' : 'block' }}>
+      {children}
+    </div>
+  );
+};
 
 function App() {
   const [authState, setAuthState] = useState({
@@ -80,10 +103,61 @@ function App() {
     id: 0,
     userId: "",
     role: "",
+    saccoId: "",
+    branchId: "",
     permissions: {},
     status: false,
   });
   const [isLoading, setIsLoading] = useState(true);
+  const [organizationInfo, setOrganizationInfo] = useState({
+    sacco: { saccoId: '', saccoName: '' },
+    branch: { branchId: '', branchName: '' }
+  });
+  const [isOrgInfoLoading, setIsOrgInfoLoading] = useState(false);
+  const [currentTime, setCurrentTime] = useState(new Date());
+
+  // Memoized function to load organization info
+  const loadOrganizationInfo = useCallback(async (saccoId, branchId, tokenPayload = null) => {
+    if (!saccoId && !branchId) return;
+    
+    setIsOrgInfoLoading(true);
+    try {
+      const orgInfo = await OrganizationService.getOrganizationInfo(saccoId, branchId, tokenPayload);
+      setOrganizationInfo(orgInfo);
+    } catch (error) {
+      console.error('Error loading organization info:', error);
+    } finally {
+      setIsOrgInfoLoading(false);
+    }
+  }, []);
+
+  // Memoized organization display component
+  const organizationDisplay = useMemo(() => {
+    if (!authState.status) return null;
+    
+    return (
+      <div className="organization-info">
+        <div className="organization-badge">
+          <div className="organization-icon">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              <path d="M2 17L12 22L22 17" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              <path d="M2 12L12 17L22 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          </div>
+          <div className="organization-details">
+            <div className="sacco-name">{organizationInfo.sacco.saccoName || 'Loading...'}</div>
+            {organizationInfo.branch.branchName && organizationInfo.branch.branchName !== 'No Branch' && (
+              <>
+                <span className="organization-separator">,</span>
+                <div className="branch-name">{organizationInfo.branch.branchName}</div>
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }, [authState.status, organizationInfo]);
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -105,28 +179,47 @@ function App() {
         if (response.data.error) {
           // Clear invalid token
           localStorage.removeItem("accessToken");
-          setAuthState({ username: "", id: 0, userId: "", role: "", permissions: {}, status: false });
+          setAuthState({ username: "", id: 0, userId: "", role: "", saccoId: "", branchId: "", permissions: {}, status: false });
         } else {
           
           // Fetch role permissions
           const rolePermissions = await fetchRolePermissions(response.data.role);
           const userPermissions = getUserPermissions(response.data.role, rolePermissions);
           
-          
-          setAuthState({
+          const authStateData = {
             username: response.data.username,
             id: response.data.id,
             userId: response.data.userId,
             role: response.data.role,
+            saccoId: response.data.saccoId || 'SYSTEM',
+            branchId: response.data.branchId || '',
             permissions: userPermissions,
             status: true,
-          });
+          };
+          
+          // Console log the user state on app initialization with existing token
+          console.log("=== APP INITIALIZATION - USER STATE DATA ===");
+          console.log("Username:", authStateData.username);
+          console.log("User ID:", authStateData.id);
+          console.log("User ID (userId):", authStateData.userId);
+          console.log("Role:", authStateData.role);
+          console.log("Sacco ID:", authStateData.saccoId);
+          console.log("Branch ID:", authStateData.branchId);
+          console.log("Status:", authStateData.status);
+          console.log("Permissions:", authStateData.permissions);
+          console.log("Full auth state:", JSON.stringify(authStateData, null, 2));
+          
+          setAuthState(authStateData);
+          
+          // Load organization info with token payload for immediate display
+          const tokenPayload = response.data;
+          await loadOrganizationInfo(authStateData.saccoId, authStateData.branchId, tokenPayload);
         }
       } catch (error) {
         // Clear token only for authentication errors (401/403)
         if (error.response && (error.response.status === 401 || error.response.status === 403)) {
           localStorage.removeItem("accessToken");
-          setAuthState({ username: "", id: 0, userId: "", role: "", permissions: {}, status: false });
+          setAuthState({ username: "", id: 0, userId: "", role: "", saccoId: "", branchId: "", permissions: {}, status: false });
         } else {
           // For any other error, fall back to client-side token decoding
           try {
@@ -144,17 +237,24 @@ function App() {
             console.log("User permissions (fallback):", JSON.stringify(userPermissions, null, 2));
             console.log("=== END FALLBACK AUTH STATE DATA ===");
             
-            setAuthState({
+            const fallbackAuthState = {
               username: tokenPayload.username,
               id: tokenPayload.id,
               userId: tokenPayload.userId || tokenPayload.id, // Fallback to id if userId not available
               role: tokenPayload.role,
+              saccoId: tokenPayload.saccoId || 'SYSTEM',
+              branchId: tokenPayload.branchId || '',
               permissions: userPermissions,
               status: true,
-            });
+            };
+            
+            setAuthState(fallbackAuthState);
+            
+            // Load organization info for fallback auth with token payload
+            await loadOrganizationInfo(fallbackAuthState.saccoId, fallbackAuthState.branchId, tokenPayload);
           } catch (decodeError) {
             localStorage.removeItem("accessToken");
-            setAuthState({ username: "", id: 0, userId: "", role: "", permissions: {}, status: false });
+            setAuthState({ username: "", id: 0, userId: "", role: "", saccoId: "", branchId: "", permissions: {}, status: false });
           }
         }
       } finally {
@@ -164,6 +264,22 @@ function App() {
 
     checkAuth();
   }, []);
+
+  // Update current time every second
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, []);
+
+  // Load organization info when auth state changes
+  useEffect(() => {
+    if (authState.status && (authState.saccoId || authState.branchId)) {
+      loadOrganizationInfo(authState.saccoId, authState.branchId);
+    }
+  }, [authState.status, authState.saccoId, authState.branchId, loadOrganizationInfo]);
 
 
 
@@ -179,7 +295,9 @@ function App() {
     }
     
     localStorage.removeItem("accessToken");
-    setAuthState({ username: "", id: 0, userId: "", role: "", permissions: {}, status: false });
+    localStorage.removeItem("organizationInfo"); // Clear organization cache
+    setAuthState({ username: "", id: 0, userId: "", role: "", saccoId: "", branchId: "", permissions: {}, status: false });
+    setOrganizationInfo({ sacco: { saccoId: '', saccoName: '' }, branch: { branchId: '', branchName: '' } });
     window.location.href = "/login";
   };
 
@@ -247,13 +365,10 @@ function App() {
         <div className="App">
           <AuthContext.Provider value={{ authState, setAuthState, logout, isLoading }}>
             <SidebarProvider isAuthenticated={authState.status}>
-              <Router>
-                <Sidebar />
-              <NavbarWrapper>
-                <div className="brand">
-                  <img src="/craftLogo2.png" alt="Craft Silicon" className="brandLogo" />
-                  <strong className="brandTitle">Sacco Lite</strong>
-                </div>
+              <WindowProvider>
+                <Router>
+                  <Sidebar />
+                <NavbarWrapper>
                 <div className="links">
                   {!authState.status ? (
                     <>
@@ -262,14 +377,25 @@ function App() {
                     </>
                   ) : (
                     <>
-                      {/* <Link to="/"> Home Page</Link>
-                      <Link to="/member-maintenance"> Member Maintenance</Link> */}
+                      {/* Organization Info Display */}
+                      {organizationDisplay}
                     </>
                   )}
                 </div>
                 <div className="loggedInContainer">
                   {authState.status && (
                     <>
+                      {/* Current Time Display */}
+                      <div className="current-time">
+                        {currentTime.toLocaleDateString('en-GB', {
+                          weekday: 'short',
+                          day: '2-digit',
+                          month: '2-digit',
+                          year: 'numeric'
+                        }).replace(/\//g, '-')} {currentTime.toLocaleTimeString('en-GB', {
+                          hour12: false
+                        })}
+                      </div>
                       <button 
                         className="fullscreenButton"
                         onClick={toggleFullscreen}
@@ -286,7 +412,7 @@ function App() {
                           justifyContent: "center",
                           fontSize: "18px",
                           transition: "all 0.2s ease",
-                          marginRight: "25px",
+                          marginRight: "15px",
                           width: "auto"
                         }}
                         onMouseEnter={(e) => {
@@ -312,11 +438,18 @@ function App() {
                   )}
                 </div>
               </NavbarWrapper>
-              <Switch>
+              
+              {/* Window Manager for window-based modules */}
+              <WindowManager />
+              
+              {/* Main content - hidden when windows are open */}
+              <MainContent>
+                <Switch>
                 <Route path="/" exact component={Home} />
                 <Route path="/admin" exact component={Admin} />
                 <Route path="/member-maintenance" exact component={MemberMaintenance} />
-                <Route path="/member/:id" exact component={MemberForm} />
+                <Route path="/member-form/new" exact component={MemberForm} />
+                <Route path="/member-form/:id" exact component={MemberForm} />
                 <Route path="/product-maintenance" exact component={ProductMaintenance} />
                 <Route path="/product/:id" exact component={ProductForm} />
                 <Route path="/currency-maintenance" exact component={CurrencyMaintenance} />
@@ -338,6 +471,9 @@ function App() {
                 <Route path="/changepassword" exact component={ChangePassword} />
                 <Route path="/user-maintenance" exact component={UserMaintenance} />
                 <Route path="/user-form/:id" exact component={UserForm} />
+                <Route path="/account-officers" exact component={AccountOfficers} />
+                <Route path="/account-officers/new" exact component={AccountOfficerForm} />
+                <Route path="/account-officers/:id" exact component={AccountOfficerForm} />
                 <Route path="/setup-password" exact component={SetupPassword} />
                 <Route path="/logs-management" exact component={LogsManagement} />
                 <Route path="/transactions" exact component={TransactionMaintenance} />
@@ -348,6 +484,10 @@ function App() {
                 <Route path="/cash-transaction/:id" exact component={CashTransactionForm} />
                 <Route path="/gender-maintenance" exact component={GenderMaintenance} />
                 <Route path="/gender/:id" exact component={GenderForm} />
+                <Route path="/nationality-maintenance" exact component={NationalityMaintenance} />
+                <Route path="/nationality/:id" exact component={NationalityForm} />
+                <Route path="/marital-status-maintenance" exact component={MaritalStatusMaintenance} />
+                <Route path="/marital-status-form/:id" exact component={MaritalStatusForm} />
                 <Route path="/identification-types-maintenance" exact component={IdentificationTypesMaintenance} />
                 <Route path="/identification-type/:id" exact component={IdentificationTypesForm} />
                 <Route path="/member-categories-maintenance" exact component={MemberCategoriesMaintenance} />
@@ -378,9 +518,13 @@ function App() {
                 <Route path="/member-360-view" exact component={Member360View} />
                 <Route path="/payouts-management" exact component={PayoutsManagement} />
                 <Route path="/payouts/:id" exact component={PayoutsForm} />
+                <Route path="/id-maintenance" exact component={IdMaintenance} />
+                <Route path="/id-format/:id" exact component={IdForm} />
                 <Route path="*" exact component={PageNotFound} />
-              </Switch>
-            </Router>
+                </Switch>
+              </MainContent>
+                </Router>
+              </WindowProvider>
             </SidebarProvider>
           </AuthContext.Provider>
         </div>

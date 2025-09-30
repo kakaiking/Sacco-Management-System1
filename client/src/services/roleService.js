@@ -19,7 +19,18 @@ export const fetchRolePermissions = async (roleName) => {
     const role = roles.find(r => r.roleName === roleName || r.roleId === roleName);
     
     if (role) {
-      return role.permissions || {};
+      try {
+        // Parse permissions if it's a JSON string
+        if (typeof role.permissions === 'string') {
+          return JSON.parse(role.permissions);
+        } else if (role.permissions && typeof role.permissions === 'object') {
+          return role.permissions;
+        }
+        return {};
+      } catch (error) {
+        console.warn('Error parsing role permissions JSON:', error);
+        return {};
+      }
     }
     
     return {};

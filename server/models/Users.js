@@ -98,10 +98,26 @@ module.exports = (sequelize, DataTypes) => {
       type: DataTypes.STRING,
       allowNull: true,
     },
+    branchId: {
+      type: DataTypes.STRING,
+      allowNull: true,
+    },
   });
 
   Users.associate = (models) => {
-    // Associations can be added here if needed
+    // Association with Sacco
+    Users.belongsTo(models.Sacco, {
+      foreignKey: 'saccoId',
+      targetKey: 'saccoId',
+      as: 'sacco'
+    });
+
+    // Association with Branch
+    Users.belongsTo(models.Branch, {
+      foreignKey: 'branchId',
+      targetKey: 'branchId',
+      as: 'branch'
+    });
   };
 
   return Users;

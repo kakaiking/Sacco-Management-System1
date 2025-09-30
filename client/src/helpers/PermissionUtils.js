@@ -15,6 +15,8 @@ export const PERMISSIONS = {
   LOAN_CALCULATOR: 'loan_calculator',
   LOGS_MAINTENANCE: 'logs_maintenance',
   GENDER_MAINTENANCE: 'gender_maintenance',
+  NATIONALITY_MAINTENANCE: 'nationality_maintenance',
+  MARITAL_STATUS_MAINTENANCE: 'marital_status_maintenance',
   IDENTIFICATION_TYPES_MAINTENANCE: 'identification_types_maintenance',
   MEMBER_CATEGORIES_MAINTENANCE: 'member_categories_maintenance',
   NEXT_OF_KIN_RELATION_TYPES_MAINTENANCE: 'next_of_kin_relation_types_maintenance',
@@ -28,6 +30,7 @@ export const PERMISSIONS = {
   LOAN_PRODUCTS_MAINTENANCE: 'loan_products_maintenance',
   COLLATERAL_MAINTENANCE: 'collateral_maintenance',
   PAYOUTS_MANAGEMENT: 'payouts_management',
+  ID_MAINTENANCE: 'id_maintenance',
   
   // Action permissions
   VIEW: 'view',
@@ -137,6 +140,20 @@ export const DEFAULT_PERMISSIONS = {
     [PERMISSIONS.DELETE]: false,
     [PERMISSIONS.APPROVE]: false,
   },
+  [PERMISSIONS.NATIONALITY_MAINTENANCE]: {
+    [PERMISSIONS.VIEW]: false,
+    [PERMISSIONS.ADD]: false,
+    [PERMISSIONS.EDIT]: false,
+    [PERMISSIONS.DELETE]: false,
+    [PERMISSIONS.APPROVE]: false,
+  },
+  [PERMISSIONS.MARITAL_STATUS_MAINTENANCE]: {
+    [PERMISSIONS.VIEW]: false,
+    [PERMISSIONS.ADD]: false,
+    [PERMISSIONS.EDIT]: false,
+    [PERMISSIONS.DELETE]: false,
+    [PERMISSIONS.APPROVE]: false,
+  },
   [PERMISSIONS.IDENTIFICATION_TYPES_MAINTENANCE]: {
     [PERMISSIONS.VIEW]: false,
     [PERMISSIONS.ADD]: false,
@@ -222,6 +239,13 @@ export const DEFAULT_PERMISSIONS = {
     [PERMISSIONS.APPROVE]: false,
   },
   [PERMISSIONS.PAYOUTS_MANAGEMENT]: {
+    [PERMISSIONS.VIEW]: false,
+    [PERMISSIONS.ADD]: false,
+    [PERMISSIONS.EDIT]: false,
+    [PERMISSIONS.DELETE]: false,
+    [PERMISSIONS.APPROVE]: false,
+  },
+  [PERMISSIONS.ID_MAINTENANCE]: {
     [PERMISSIONS.VIEW]: false,
     [PERMISSIONS.ADD]: false,
     [PERMISSIONS.EDIT]: false,
@@ -330,6 +354,20 @@ export const ADMIN_PERMISSIONS = {
     [PERMISSIONS.DELETE]: true,
     [PERMISSIONS.APPROVE]: true,
   },
+  [PERMISSIONS.NATIONALITY_MAINTENANCE]: {
+    [PERMISSIONS.VIEW]: true,
+    [PERMISSIONS.ADD]: true,
+    [PERMISSIONS.EDIT]: true,
+    [PERMISSIONS.DELETE]: true,
+    [PERMISSIONS.APPROVE]: true,
+  },
+  [PERMISSIONS.MARITAL_STATUS_MAINTENANCE]: {
+    [PERMISSIONS.VIEW]: true,
+    [PERMISSIONS.ADD]: true,
+    [PERMISSIONS.EDIT]: true,
+    [PERMISSIONS.DELETE]: true,
+    [PERMISSIONS.APPROVE]: true,
+  },
   [PERMISSIONS.IDENTIFICATION_TYPES_MAINTENANCE]: {
     [PERMISSIONS.VIEW]: true,
     [PERMISSIONS.ADD]: true,
@@ -415,6 +453,13 @@ export const ADMIN_PERMISSIONS = {
     [PERMISSIONS.APPROVE]: true,
   },
   [PERMISSIONS.PAYOUTS_MANAGEMENT]: {
+    [PERMISSIONS.VIEW]: true,
+    [PERMISSIONS.ADD]: true,
+    [PERMISSIONS.EDIT]: true,
+    [PERMISSIONS.DELETE]: true,
+    [PERMISSIONS.APPROVE]: true,
+  },
+  [PERMISSIONS.ID_MAINTENANCE]: {
     [PERMISSIONS.VIEW]: true,
     [PERMISSIONS.ADD]: true,
     [PERMISSIONS.EDIT]: true,

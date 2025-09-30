@@ -65,7 +65,7 @@ module.exports = (sequelize, DataTypes) => {
 
   // Define associations
   Gender.associate = (models) => {
-    // Gender belongs to Sacco (without foreign key constraint)
+    // Define association with Sacco without foreign key constraint
     Gender.belongsTo(models.Sacco, {
       foreignKey: 'saccoId',
       targetKey: 'saccoId',

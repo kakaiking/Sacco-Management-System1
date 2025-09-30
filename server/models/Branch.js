@@ -13,7 +13,20 @@ module.exports = (sequelize, DataTypes) => {
     approvedOn: { type: DataTypes.DATE, allowNull: true },
     verifierRemarks: { type: DataTypes.TEXT, allowNull: true },
     isDeleted: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 0 },
+  }, {
+    tableName: 'branches', // Explicitly specify the table name
+    timestamps: true // Enable createdAt and updatedAt
   });
+
+  // Define associations
+  Branch.associate = (models) => {
+    // Branch belongs to Sacco
+    Branch.belongsTo(models.Sacco, {
+      foreignKey: 'saccoId',
+      targetKey: 'saccoId',
+      as: 'sacco'
+    });
+  };
 
   return Branch;
 };

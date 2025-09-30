@@ -65,14 +65,12 @@ module.exports = (sequelize, DataTypes) => {
 
   // Define associations
   MemberCategories.associate = (models) => {
-    // MemberCategories belongs to Sacco (without foreign key constraint)
+    // Define association with Sacco without foreign key constraint
     MemberCategories.belongsTo(models.Sacco, {
       foreignKey: 'saccoId',
       targetKey: 'saccoId',
       as: 'sacco',
-      constraints: false, // Disable foreign key constraint
-      onDelete: 'NO ACTION',
-      onUpdate: 'NO ACTION'
+      constraints: false // Disable foreign key constraint
     });
   };
 

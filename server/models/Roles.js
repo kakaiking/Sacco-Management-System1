@@ -43,11 +43,19 @@ module.exports = (sequelize, DataTypes) => {
       type: DataTypes.STRING, 
       allowNull: true 
     },
+    createdByRole: { 
+      type: DataTypes.STRING, 
+      allowNull: true 
+    },
     modifiedOn: { 
       type: DataTypes.DATE, 
       allowNull: true 
     },
     modifiedBy: { 
+      type: DataTypes.STRING, 
+      allowNull: true 
+    },
+    modifiedByRole: { 
       type: DataTypes.STRING, 
       allowNull: true 
     },

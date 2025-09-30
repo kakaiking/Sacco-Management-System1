@@ -128,6 +128,74 @@ router.get("/member/:memberId", validateToken, logViewOperation("LoanApplication
   }
 });
 
+// Get guarantors for a member
+router.get("/guarantors/member/:memberId", validateToken, logViewOperation("Guarantor"), async (req, res) => {
+  try {
+    const { memberId } = req.params;
+    
+    // Find all loan applications where this member is a guarantor
+    const loanApplications = await LoanApplications.findAll({
+      where: {
+        isDeleted: 0,
+        status: { [Op.ne]: "Deleted" },
+        guarantors: { [Op.ne]: null }
+      },
+      include: [
+        {
+          model: Members,
+          as: 'member',
+          required: false
+        },
+        {
+          model: LoanProducts,
+          as: 'product',
+          required: false
+        }
+      ],
+      order: [["createdOn", "DESC"]]
+    });
+    
+    // Extract guarantor information
+    const guarantorData = [];
+    
+    for (const loanApp of loanApplications) {
+      if (loanApp.guarantors) {
+        try {
+          const guarantors = typeof loanApp.guarantors === 'string' 
+            ? JSON.parse(loanApp.guarantors) 
+            : loanApp.guarantors;
+          
+          if (Array.isArray(guarantors)) {
+            guarantors.forEach(guarantor => {
+              if (guarantor.memberId && parseInt(guarantor.memberId) === parseInt(memberId)) {
+                guarantorData.push({
+                  loanApplicationId: loanApp.loanApplicationId,
+                  loanName: loanApp.loanName,
+                  loanAmount: loanApp.loanAmount,
+                  percentage: guarantor.percentage,
+                  memberDisplay: guarantor.memberDisplay,
+                  borrower: loanApp.member ? `${loanApp.member.firstName} ${loanApp.member.lastName}` : 'N/A',
+                  borrowerMemberNo: loanApp.member ? loanApp.member.memberNo : 'N/A',
+                  product: loanApp.product ? loanApp.product.loanProductName : 'N/A',
+                  status: loanApp.status,
+                  createdOn: loanApp.createdOn,
+                  guaranteedAmount: (parseFloat(loanApp.loanAmount) * parseFloat(guarantor.percentage)) / 100
+                });
+              }
+            });
+          }
+        } catch (error) {
+          console.error('Error parsing guarantors for loan application:', loanApp.id, error);
+        }
+      }
+    }
+    
+    respond(res, 200, "Member guarantor data fetched", guarantorData);
+  } catch (err) {
+    respond(res, 500, err.message);
+  }
+});
+
 // Get one
 router.get("/:id", validateToken, logViewOperation("LoanApplication"), async (req, res) => {
   try {

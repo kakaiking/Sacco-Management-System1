@@ -68,6 +68,34 @@ router.get("/", validateToken, logViewOperation("Branch"), async (req, res) => {
   }
 });
 
+// Get branch name by branchId
+router.get("/name/:branchId", validateToken, logViewOperation("Branch"), async (req, res) => {
+  try {
+    const { branchId } = req.params;
+    
+    // Validate branchId parameter
+    if (!branchId) {
+      return respond(res, 400, "branchId is required");
+    }
+    
+    const branch = await Branch.findOne({ 
+      where: { 
+        branchId: branchId,
+        isDeleted: 0 
+      },
+      attributes: ['branchId', 'branchName']
+    });
+    
+    if (!branch) {
+      return respond(res, 404, "Branch not found");
+    }
+    
+    respond(res, 200, "Branch name fetched successfully", branch);
+  } catch (err) {
+    handleError(res, err, "Failed to fetch branch name");
+  }
+});
+
 // Get one
 router.get("/:id", validateToken, logViewOperation("Branch"), async (req, res) => {
   try {

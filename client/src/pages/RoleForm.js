@@ -8,8 +8,10 @@ import { AuthContext } from "../helpers/AuthContext";
 
 // System modules based on the sidebar navigation - moved outside component to prevent re-creation
 const systemModules = [
-  // Admin Section
+  // Members Section
   { name: "Member Maintenance", key: "member_maintenance" },
+  
+  // Admin Section
   { name: "User Maintenance", key: "user_maintenance" },
   { name: "Role Maintenance", key: "role_maintenance" },
   { name: "Logs Maintenance", key: "logs_maintenance" },
@@ -21,6 +23,7 @@ const systemModules = [
   { name: "Branch Maintenance", key: "branch_maintenance" },
   { name: "Charges Management", key: "charges_management" },
   { name: "Till Maintenance", key: "till_maintenance" },
+  { name: "Identification Numbers Maintenance", key: "id_maintenance" },
   
   // Accounting Section
   { name: "Accounts Management", key: "accounts_management" },
@@ -98,7 +101,19 @@ function RoleForm() {
           const role = response.data.entity;
           
           // Initialize permissions if not present
-          const permissions = role.permissions || {};
+          let permissions = {};
+          try {
+            // Parse permissions if it's a JSON string
+            if (typeof role.permissions === 'string') {
+              permissions = JSON.parse(role.permissions);
+            } else if (role.permissions && typeof role.permissions === 'object') {
+              permissions = role.permissions;
+            }
+          } catch (error) {
+            console.warn('Error parsing permissions JSON:', error);
+            permissions = {};
+          }
+          
           systemModules.forEach(module => {
             if (!permissions[module.key]) {
               permissions[module.key] = {
@@ -109,9 +124,21 @@ function RoleForm() {
                 canApprove: false
               };
             } else {
-              // Ensure canApprove exists for existing permissions
-              if (permissions[module.key].canApprove === undefined) {
-                permissions[module.key].canApprove = false;
+              // Convert from new format (view, add, edit, delete, approve) to old format (canView, canAdd, etc.)
+              const newFormat = permissions[module.key];
+              if (newFormat.view !== undefined) {
+                permissions[module.key] = {
+                  canView: newFormat.view || false,
+                  canAdd: newFormat.add || false,
+                  canEdit: newFormat.edit || false,
+                  canDelete: newFormat.delete || false,
+                  canApprove: newFormat.approve || false
+                };
+              } else {
+                // Ensure canApprove exists for existing permissions
+                if (permissions[module.key].canApprove === undefined) {
+                  permissions[module.key].canApprove = false;
+                }
               }
             }
           });
@@ -171,13 +198,32 @@ function RoleForm() {
 
     setLoading(true);
     try {
+      // Convert permissions from old format (canView, canAdd, etc.) to new format (view, add, etc.)
+      const convertedPermissions = {};
+      Object.keys(formData.permissions).forEach(key => {
+        const permission = formData.permissions[key];
+        convertedPermissions[key] = {
+          view: permission.canView || false,
+          add: permission.canAdd || false,
+          edit: permission.canEdit || false,
+          delete: permission.canDelete || false,
+          approve: permission.canApprove || false
+        };
+      });
+
+      const payload = {
+        ...formData,
+        permissions: convertedPermissions,
+        saccoId: authState.saccoId || 'SYSTEM' // Add saccoId from logged-in user's auth state
+      };
+
       if (isEdit) {
-        await axios.put(`http://localhost:3001/roles/${id}`, formData, {
+        await axios.put(`http://localhost:3001/roles/${id}`, payload, {
           headers: { accessToken: localStorage.getItem("accessToken") }
         });
         showMessage("Role updated successfully", "success");
       } else {
-        await axios.post("http://localhost:3001/roles", formData, {
+        await axios.post("http://localhost:3001/roles", payload, {
           headers: { accessToken: localStorage.getItem("accessToken") }
         });
         showMessage("Role created successfully", "success");

@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { MemberCategories, Sacco } = require('../models');
+const { MemberCategories } = require('../models');
 const { Op } = require('sequelize');
 const { validateToken } = require('../middlewares/AuthMiddleware');
 const { logViewOperation, logCreateOperation, logUpdateOperation, logDeleteOperation } = require('../middlewares/LoggingMiddleware');
@@ -40,13 +40,6 @@ router.get('/', validateToken, logViewOperation("MemberCategories"), async (req,
 
     const { count, rows: memberCategories } = await MemberCategories.findAndCountAll({
       where: whereClause,
-      include: [
-        {
-          model: Sacco,
-          as: 'sacco',
-          attributes: ['saccoId', 'saccoName']
-        }
-      ],
       order: [['createdOn', 'DESC']],
       limit: parseInt(limit),
       offset: parseInt(offset)
@@ -80,14 +73,7 @@ router.get('/:id', validateToken, logViewOperation("MemberCategories"), async (r
     const { id } = req.params;
     
     const memberCategory = await MemberCategories.findOne({
-      where: { id, isDeleted: 0 },
-      include: [
-        {
-          model: Sacco,
-          as: 'sacco',
-          attributes: ['saccoId', 'saccoName']
-        }
-      ]
+      where: { id, isDeleted: 0 }
     });
 
     if (!memberCategory) {
@@ -146,16 +132,8 @@ router.post('/', validateToken, logCreateOperation("MemberCategories"), async (r
       isDeleted: 0
     });
 
-    // Fetch the created member category with associations
-    const createdMemberCategory = await MemberCategories.findByPk(memberCategory.id, {
-      include: [
-        {
-          model: Sacco,
-          as: 'sacco',
-          attributes: ['saccoId', 'saccoName']
-        }
-      ]
-    });
+    // Fetch the created member category
+    const createdMemberCategory = await MemberCategories.findByPk(memberCategory.id);
 
     res.status(201).json({
       code: 201,
@@ -220,16 +198,8 @@ router.put('/:id', validateToken, logUpdateOperation("MemberCategories"), async 
       modifiedOn: new Date()
     });
 
-    // Fetch the updated member category with associations
-    const updatedMemberCategory = await MemberCategories.findByPk(id, {
-      include: [
-        {
-          model: Sacco,
-          as: 'sacco',
-          attributes: ['saccoId', 'saccoName']
-        }
-      ]
-    });
+    // Fetch the updated member category
+    const updatedMemberCategory = await MemberCategories.findByPk(id);
 
     res.json({
       code: 200,
@@ -319,16 +289,8 @@ router.put('/:id/status', validateToken, logUpdateOperation("MemberCategories"),
 
     await memberCategory.update(updateData);
 
-    // Fetch the updated member category with associations
-    const updatedMemberCategory = await MemberCategories.findByPk(id, {
-      include: [
-        {
-          model: Sacco,
-          as: 'sacco',
-          attributes: ['saccoId', 'saccoName']
-        }
-      ]
-    });
+    // Fetch the updated member category
+    const updatedMemberCategory = await MemberCategories.findByPk(id);
 
     res.json({
       code: 200,

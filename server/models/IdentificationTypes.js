@@ -66,7 +66,7 @@ module.exports = (sequelize, DataTypes) => {
 
   // Define associations
   IdentificationTypes.associate = (models) => {
-    // IdentificationTypes belongs to Sacco (without foreign key constraint)
+    // Define association with Sacco without foreign key constraint
     IdentificationTypes.belongsTo(models.Sacco, {
       foreignKey: 'saccoId',
       targetKey: 'saccoId',

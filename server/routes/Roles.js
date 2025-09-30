@@ -127,6 +127,8 @@ router.post("/", validateToken, logCreateOperation("Role"), async (req, res) => 
     // Prepare role data
     const roleData = {
       roleId: roleId,
+      saccoId: data.saccoId || req.user?.saccoId || 'SYSTEM', // Use provided saccoId, user's saccoId, or default to SYSTEM
+      createdByRole: req.user?.role || null, // Get roleId from currently logged in user's state
       roleName: data.roleName.trim(),
       description: data.description?.trim() || null,
       status: data.status || "Active",
@@ -179,6 +181,7 @@ router.put("/:id", validateToken, logUpdateOperation("Role"), async (req, res) =
       permissions: data.permissions || {},
       modifiedBy: username,
       modifiedOn: new Date(),
+      modifiedByRole: req.user?.role || null, // Get roleId from currently logged in user's state
     };
     
     await role.update(updateData);
@@ -219,6 +222,7 @@ router.delete("/:id", validateToken, logDeleteOperation("Role"), async (req, res
       isDeleted: 1,
       modifiedBy: username,
       modifiedOn: new Date(),
+      modifiedByRole: req.user?.role || null, // Get roleId from currently logged in user's state
     });
     
     respond(res, 200, "Role deleted successfully");
@@ -267,6 +271,7 @@ router.delete("/", validateToken, logDeleteOperation("Role"), async (req, res) =
       isDeleted: 1,
       modifiedBy: username,
       modifiedOn: new Date(),
+      modifiedByRole: req.user?.role || null, // Get roleId from currently logged in user's state
     }, {
       where: { id: ids }
     });

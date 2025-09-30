@@ -6,6 +6,7 @@ import { useSnackbar } from "../helpers/SnackbarContext";
 import { AuthContext } from "../helpers/AuthContext";
 import DashboardWrapper from '../components/DashboardWrapper';
 import RoleLookupModal from '../components/RoleLookupModal';
+import BranchLookupModal from '../components/BranchLookupModal';
 
 function UserForm() {
   const history = useHistory();
@@ -24,6 +25,8 @@ function UserForm() {
     lastName: "",
     phoneNumber: "",
     role: "",
+    branchId: "",
+    branchDisplay: "",
     status: "Pending Password",
     createdBy: "",
     createdOn: "",
@@ -39,6 +42,9 @@ function UserForm() {
 
   // Role lookup modal state
   const [isRoleModalOpen, setIsRoleModalOpen] = useState(false);
+  
+  // Branch lookup modal state
+  const [isBranchModalOpen, setIsBranchModalOpen] = useState(false);
 
   useEffect(() => {
     // Only redirect if authentication check is complete and user is not authenticated
@@ -68,6 +74,8 @@ function UserForm() {
           lastName: data.lastName || "",
           phoneNumber: data.phoneNumber || "",
           role: data.role || "User",
+          branchId: data.branchId || "",
+          branchDisplay: data.branch?.branchName || "",
           status: data.status || "Pending Password",
           createdBy: data.createdBy || "",
           createdOn: data.createdOn || "",
@@ -118,6 +126,24 @@ function UserForm() {
   const handleSelectRole = (selectedRole) => {
     setForm(prev => ({ ...prev, role: selectedRole.roleName }));
     setIsRoleModalOpen(false);
+  };
+
+  // Branch lookup modal handlers
+  const handleOpenBranchModal = () => {
+    setIsBranchModalOpen(true);
+  };
+
+  const handleCloseBranchModal = () => {
+    setIsBranchModalOpen(false);
+  };
+
+  const handleSelectBranch = (selectedBranch) => {
+    setForm(prev => ({ 
+      ...prev, 
+      branchId: selectedBranch.branchId,
+      branchDisplay: selectedBranch.branchName 
+    }));
+    setIsBranchModalOpen(false);
   };
 
   const getStatusColor = (status) => {
@@ -258,6 +284,29 @@ function UserForm() {
                 )}
               </div>
             </label>
+            <label>Branch
+              <div className="role-input-wrapper">
+                <input 
+                  type="text"
+                  className="input" 
+                  value={form.branchDisplay} 
+                  onChange={e => setForm({ ...form, branchDisplay: e.target.value })} 
+                  disabled={!isCreate && !isEdit}
+                  placeholder="Select a branch"
+                  readOnly={!isCreate && !isEdit}
+                />
+                {(isCreate || isEdit) && (
+                  <button
+                    type="button"
+                    className="role-search-btn"
+                    onClick={handleOpenBranchModal}
+                    title="Search branches"
+                  >
+                    <FiSearch />
+                  </button>
+                )}
+              </div>
+            </label>
             {/* {!isCreate && (
               <label>Status
                 <select className="input" 
@@ -384,6 +433,13 @@ function UserForm() {
         isOpen={isRoleModalOpen}
         onClose={handleCloseRoleModal}
         onSelectRole={handleSelectRole}
+      />
+
+      {/* Branch Lookup Modal */}
+      <BranchLookupModal
+        isOpen={isBranchModalOpen}
+        onClose={handleCloseBranchModal}
+        onSelectBranch={handleSelectBranch}
       />
     </DashboardWrapper>
   );

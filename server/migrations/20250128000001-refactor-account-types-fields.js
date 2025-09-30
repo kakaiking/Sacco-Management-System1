@@ -1,131 +1,161 @@
 'use strict';
 
 module.exports = {
-  up: async (queryInterface, Sequelize) => {
-    try {
-      console.log('Starting AccountTypes field refactoring migration...');
-      
-      // Remove fields from AccountTypes table
-      const fieldsToRemove = [
-        'isCreditInterest',
-        'isDebitInterest', 
-        'needGuarantors',
-        'maxGuarantors',
-        'minGuarantors',
-        'isSpecial',
-        'maxSpecialUsers'
-      ];
-      
-      for (const field of fieldsToRemove) {
-        try {
-          await queryInterface.removeColumn('AccountTypes', field);
-          console.log(`✅ Removed column ${field} from AccountTypes`);
-        } catch (error) {
-          if (error.message.includes('doesn\'t exist')) {
-            console.log(`⚠️  Column ${field} doesn't exist in AccountTypes, skipping...`);
-          } else {
-            console.error(`❌ Error removing column ${field} from AccountTypes:`, error.message);
-            throw error;
-          }
-        }
-      }
-      
-      // Add new fields to Products table
-      try {
-        await queryInterface.addColumn('Products', 'isSpecial', {
+    up: async (queryInterface, Sequelize) => {
+    // Check if columns already exist before adding them
+    const tableDescription = await queryInterface.describeTable('Products');
+    
+    if (!tableDescription.isSpecial) {
+      await queryInterface.addColumn('Products', 'isSpecial', {
           type: Sequelize.BOOLEAN,
           allowNull: false,
           defaultValue: false
         });
-        console.log('✅ Added isSpecial column to Products');
-      } catch (error) {
-        if (error.message.includes('already exists')) {
-          console.log('⚠️  isSpecial column already exists in Products, skipping...');
-        } else {
-          console.error('❌ Error adding isSpecial to Products:', error.message);
-          throw error;
-        }
-      }
-      
-      try {
-        await queryInterface.addColumn('Products', 'maxSpecialUsers', {
-          type: Sequelize.INTEGER,
-          allowNull: true
-        });
-        console.log('✅ Added maxSpecialUsers column to Products');
-      } catch (error) {
-        if (error.message.includes('already exists')) {
-          console.log('⚠️  maxSpecialUsers column already exists in Products, skipping...');
-        } else {
-          console.error('❌ Error adding maxSpecialUsers to Products:', error.message);
-          throw error;
-        }
-      }
-      
-      // Add new fields to LoanProducts table
-      try {
-        await queryInterface.addColumn('LoanProducts', 'needGuarantors', {
-          type: Sequelize.BOOLEAN,
-          allowNull: false,
-          defaultValue: false
-        });
-        console.log('✅ Added needGuarantors column to LoanProducts');
-      } catch (error) {
-        if (error.message.includes('already exists')) {
-          console.log('⚠️  needGuarantors column already exists in LoanProducts, skipping...');
-        } else {
-          console.error('❌ Error adding needGuarantors to LoanProducts:', error.message);
-          throw error;
-        }
-      }
-      
-      try {
-        await queryInterface.addColumn('LoanProducts', 'maxGuarantors', {
-          type: Sequelize.INTEGER,
-          allowNull: true
-        });
-        console.log('✅ Added maxGuarantors column to LoanProducts');
-      } catch (error) {
-        if (error.message.includes('already exists')) {
-          console.log('⚠️  maxGuarantors column already exists in LoanProducts, skipping...');
-        } else {
-          console.error('❌ Error adding maxGuarantors to LoanProducts:', error.message);
-          throw error;
-        }
-      }
-      
-      try {
-        await queryInterface.addColumn('LoanProducts', 'minGuarantors', {
-          type: Sequelize.INTEGER,
-          allowNull: true
-        });
-        console.log('✅ Added minGuarantors column to LoanProducts');
-      } catch (error) {
-        if (error.message.includes('already exists')) {
-          console.log('⚠️  minGuarantors column already exists in LoanProducts, skipping...');
-        } else {
-          console.error('❌ Error adding minGuarantors to LoanProducts:', error.message);
-          throw error;
-        }
-      }
-      
-      console.log('✅ AccountTypes field refactoring migration completed successfully');
-    } catch (error) {
-      console.error('❌ AccountTypes field refactoring migration failed:', error);
-      throw error;
+    } else {
+      console.log('Column isSpecial already exists in Products table - skipping');
     }
-  },
-
-  down: async (queryInterface, Sequelize) => {
-    try {
-      console.log('Rolling back AccountTypes field refactoring migration...');
-      
-      // Add back fields to AccountTypes table
+    
+    if (!tableDescription.maxSpecialUsers) {
+      await queryInterface.addColumn('Products', 'maxSpecialUsers', {
+          type: Sequelize.INTEGER,
+          allowNull: true
+        });
+    } else {
+      console.log('Column maxSpecialUsers already exists in Products table - skipping');
+    }
+    
+    if (!tableDescription.needGuarantors) {
+      await queryInterface.addColumn('LoanProducts', 'needGuarantors', {
+          type: Sequelize.BOOLEAN,
+          allowNull: false,
+          defaultValue: false
+        });
+    } else {
+      console.log('Column needGuarantors already exists in LoanProducts table - skipping');
+    }
+    
+    if (!tableDescription.maxGuarantors) {
+      await queryInterface.addColumn('LoanProducts', 'maxGuarantors', {
+          type: Sequelize.INTEGER,
+          allowNull: true
+        });
+    } else {
+      console.log('Column maxGuarantors already exists in LoanProducts table - skipping');
+    }
+    
+    if (!tableDescription.minGuarantors) {
+      await queryInterface.addColumn('LoanProducts', 'minGuarantors', {
+          type: Sequelize.INTEGER,
+          allowNull: true
+        });
+    } else {
+      console.log('Column minGuarantors already exists in LoanProducts table - skipping');
+    }
+    
+    if (!tableDescription.isCreditInterest) {
       await queryInterface.addColumn('AccountTypes', 'isCreditInterest', {
         type: Sequelize.BOOLEAN,
         allowNull: false,
         defaultValue: false
       });
+    } else {
+      console.log('Column isCreditInterest already exists in AccountTypes table - skipping');
+    }
+    
+    if (!tableDescription.isDebitInterest) {
+      await queryInterface.addColumn('AccountTypes', 'isDebitInterest', {
+        type: Sequelize.BOOLEAN,
+        allowNull: false,
+        defaultValue: false
+      });
+    } else {
+      console.log('Column isDebitInterest already exists in AccountTypes table - skipping');
+    }
+    
+    if (!tableDescription.needGuarantors) {
+      await queryInterface.addColumn('AccountTypes', 'needGuarantors', {
+        type: Sequelize.BOOLEAN,
+        allowNull: false,
+        defaultValue: false
+      });
+    } else {
+      console.log('Column needGuarantors already exists in AccountTypes table - skipping');
+    }
+    
+    if (!tableDescription.maxGuarantors) {
+      await queryInterface.addColumn('AccountTypes', 'maxGuarantors', {
+        type: Sequelize.INTEGER,
+        allowNull: true
+      });
+    } else {
+      console.log('Column maxGuarantors already exists in AccountTypes table - skipping');
+    }
+    
+    if (!tableDescription.minGuarantors) {
+      await queryInterface.addColumn('AccountTypes', 'minGuarantors', {
+        type: Sequelize.INTEGER,
+        allowNull: true
+      });
+    } else {
+      console.log('Column minGuarantors already exists in AccountTypes table - skipping');
+    }
+    
+    if (!tableDescription.isSpecial) {
+      await queryInterface.addColumn('AccountTypes', 'isSpecial', {
+        type: Sequelize.BOOLEAN,
+        allowNull: false,
+        defaultValue: false
+      });
+    } else {
+      console.log('Column isSpecial already exists in AccountTypes table - skipping');
+    }
+    
+    if (!tableDescription.maxSpecialUsers) {
+      await queryInterface.addColumn('AccountTypes', 'maxSpecialUsers', {
+        type: Sequelize.INTEGER,
+        allowNull: true
+      });
+    } else {
+      console.log('Column maxSpecialUsers already exists in AccountTypes table - skipping');
+    }
+    
+  },
+
+    down: async (queryInterface, Sequelize) => {
+    // Check if columns exist before removing them
+    const tableDescription = await queryInterface.describeTable('Products');
+    
+    if (tableDescription.isSpecial) {
+      await queryInterface.removeColumn('Products', 'isSpecial');
+    } else {
+      console.log('Column isSpecial does not exist in Products table - skipping');
+    }
+    
+    if (tableDescription.maxSpecialUsers) {
+      await queryInterface.removeColumn('Products', 'maxSpecialUsers');
+    } else {
+      console.log('Column maxSpecialUsers does not exist in Products table - skipping');
+    }
+    
+    if (tableDescription.needGuarantors) {
+      await queryInterface.removeColumn('LoanProducts', 'needGuarantors');
+    } else {
+      console.log('Column needGuarantors does not exist in LoanProducts table - skipping');
+    }
+    
+    if (tableDescription.maxGuarantors) {
+      await queryInterface.removeColumn('LoanProducts', 'maxGuarantors');
+    } else {
+      console.log('Column maxGuarantors does not exist in LoanProducts table - skipping');
+    }
+    
+    if (tableDescription.minGuarantors) {
+      await queryInterface.removeColumn('LoanProducts', 'minGuarantors');
+    } else {
+      console.log('Column minGuarantors does not exist in LoanProducts table - skipping');
+    }
+    
+  });
       
       await queryInterface.addColumn('AccountTypes', 'isDebitInterest', {
         type: Sequelize.BOOLEAN,

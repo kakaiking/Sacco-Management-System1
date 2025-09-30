@@ -40,6 +40,12 @@ function GenderLookupModal({ isOpen, onClose, onSelectGender }) {
     setSelectedGender(gender);
   };
 
+  const handleGenderDoubleClick = (gender) => {
+    setSelectedGender(gender);
+    onSelectGender(gender);
+    onClose();
+  };
+
   const handleConfirmSelection = () => {
     if (selectedGender) {
       onSelectGender(selectedGender);
@@ -98,7 +104,6 @@ function GenderLookupModal({ isOpen, onClose, onSelectGender }) {
                 <thead>
                   <tr>
                     <th>Select</th>
-                    <th>Gender ID</th>
                     <th>Gender Name</th>
                     <th>Description</th>
                     <th>Status</th>
@@ -107,7 +112,7 @@ function GenderLookupModal({ isOpen, onClose, onSelectGender }) {
                 <tbody>
                   {filteredGenders.length === 0 ? (
                     <tr>
-                      <td colSpan="5" className="no-data">
+                      <td colSpan="4" className="no-data">
                         {searchTerm ? 'No genders found matching your search' : 'No genders available'}
                       </td>
                     </tr>
@@ -117,6 +122,7 @@ function GenderLookupModal({ isOpen, onClose, onSelectGender }) {
                         key={gender.id} 
                         className={selectedGender?.id === gender.id ? 'selected' : ''}
                         onClick={() => handleGenderSelect(gender)}
+                        onDoubleClick={() => handleGenderDoubleClick(gender)}
                         style={{ cursor: 'pointer' }}
                       >
                         <td>
@@ -127,7 +133,6 @@ function GenderLookupModal({ isOpen, onClose, onSelectGender }) {
                             onChange={() => handleGenderSelect(gender)}
                           />
                         </td>
-                        <td>{gender.genderId}</td>
                         <td>{gender.genderName}</td>
                         <td>{gender.description || '-'}</td>
                         <td>

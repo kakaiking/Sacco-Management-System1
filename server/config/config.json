@@ -1,44 +1,35 @@
 {
   "development": {
-    "username": "Realm",
-    "password": "friend",
+    "username": "root",
+    "password": "kingisthe10111--",
     "database": "dream_nest",
-    "host": "CSK-BRNET-00052",
-    "port": 1433,
-    "dialect": "mssql",
+    "host": "localhost",
+    "port": 3306,
+    "dialect": "mysql",
     "dialectOptions": {
-      "options": {
-        "encrypt": false,
-        "trustServerCertificate": true
-      }
+      "charset": "utf8mb4"
     }
   },
   "test": {
-    "username": "Realm",
-    "password": "friend",
-    "database": "dream_nest",
-    "host": "CSK-BRNET-00052",
-    "port": 1433,
-    "dialect": "mssql",
+    "username": "root",
+    "password": "kingisthe10111--",
+    "database": "dream_nest_test",
+    "host": "localhost",
+    "port": 3306,
+    "dialect": "mysql",
     "dialectOptions": {
-      "options": {
-        "encrypt": false,
-        "trustServerCertificate": true
-      }
+      "charset": "utf8mb4"
     }
   },
   "production": {
-    "username": "Realm",
-    "password": "friend",
+    "username": "root",
+    "password": "kingisthe10111--",
     "database": "dream_nest",
-    "host": "CSK-BRNET-00052",
-    "port": 1433,
-    "dialect": "mssql",
+    "host": "your_prod_host",
+    "port": 3306,
+    "dialect": "mysql",
     "dialectOptions": {
-      "options": {
-        "encrypt": false,
-        "trustServerCertificate": true
-      }
+      "charset": "utf8mb4"
     }
   }
 }

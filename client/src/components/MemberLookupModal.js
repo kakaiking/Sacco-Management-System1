@@ -2,6 +2,28 @@ import React, { useState, useEffect } from 'react';
 import { FiX, FiCheck, FiSearch } from 'react-icons/fi';
 import axios from 'axios';
 
+// Helper function to generate member name based on member type
+const getMemberName = (member) => {
+  if (!member) return '';
+  
+  switch (member.category) {
+    case 'Individual':
+    case 'Minor':
+      return `${member.firstName || ''} ${member.lastName || ''}`.trim();
+    case 'Corporate':
+      return member.companyName || '';
+    case 'Chama':
+      return member.chamaName || '';
+    case 'Joint':
+      // For joint members, show the primary member name and indicate it's joint
+      const primaryName = `${member.firstName || ''} ${member.lastName || ''}`.trim();
+      return primaryName ? `${primaryName} (Joint)` : 'Joint Member';
+    default:
+      // Fallback to firstName + lastName for unknown types
+      return `${member.firstName || ''} ${member.lastName || ''}`.trim();
+  }
+};
+
 function MemberLookupModal({ isOpen, onClose, onSelectMember }) {
   const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -29,16 +51,114 @@ function MemberLookupModal({ isOpen, onClose, onSelectMember }) {
     }
   };
 
-  // Filter members based on search term
-  const filteredMembers = members.filter(member =>
-    member.memberNo.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    member.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    member.lastName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    member.idNumber?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // Filter members based on search term - comprehensive search across all member fields
+  const filteredMembers = members.filter(member => {
+    const searchLower = searchTerm.toLowerCase();
+    const memberName = getMemberName(member).toLowerCase();
+    
+    // Helper function to safely check if a field contains the search term
+    const fieldContains = (field) => {
+      return field && field.toString().toLowerCase().includes(searchLower);
+    };
+    
+    // Search across all member fields
+    return (
+      // Basic member information
+      fieldContains(member.memberNo) ||
+      fieldContains(memberName) ||
+      fieldContains(member.firstName) ||
+      fieldContains(member.lastName) ||
+      fieldContains(member.companyName) ||
+      fieldContains(member.chamaName) ||
+      
+      // Identification fields
+      fieldContains(member.identificationNumber) ||
+      fieldContains(member.identificationType) ||
+      fieldContains(member.kraPin) ||
+      fieldContains(member.companyKraPin) ||
+      fieldContains(member.guardianKraPin) ||
+      
+      // Contact information
+      fieldContains(member.email) ||
+      fieldContains(member.personalPhone) ||
+      fieldContains(member.alternativePhone) ||
+      fieldContains(member.guardianPhone) ||
+      
+      // Address information
+      fieldContains(member.country) ||
+      fieldContains(member.county) ||
+      fieldContains(member.subCounty) ||
+      fieldContains(member.address) ||
+      fieldContains(member.businessAddress) ||
+      fieldContains(member.guardianAddress) ||
+      
+      // Corporate/Chama specific fields
+      fieldContains(member.registrationNumber) ||
+      fieldContains(member.chamaRegistrationNumber) ||
+      fieldContains(member.businessType) ||
+      
+      // Guardian information (for minors)
+      fieldContains(member.guardianName) ||
+      fieldContains(member.guardianIdNumber) ||
+      fieldContains(member.guardianEmail) ||
+      fieldContains(member.guardianRelationship) ||
+      
+      // Other relevant fields
+      fieldContains(member.nationality) ||
+      fieldContains(member.gender) ||
+      fieldContains(member.maritalStatus) ||
+      fieldContains(member.category) ||
+      fieldContains(member.status) ||
+      
+      // Search in next of kin information
+      (member.nextOfKin && member.nextOfKin.some(kin => 
+        fieldContains(kin.firstName) ||
+        fieldContains(kin.lastName) ||
+        fieldContains(kin.phoneNumber) ||
+        fieldContains(kin.relationType)
+      )) ||
+      
+      // Search in chama members information
+      (member.chamaMembers && member.chamaMembers.some(chamaMember => 
+        fieldContains(chamaMember.firstName) ||
+        fieldContains(chamaMember.lastName) ||
+        fieldContains(chamaMember.phoneNumber) ||
+        fieldContains(chamaMember.email) ||
+        fieldContains(chamaMember.identificationNumber) ||
+        fieldContains(chamaMember.kraPin)
+      )) ||
+      
+      // Search in authorized signatories information
+      (member.authorizedSignatories && member.authorizedSignatories.some(signatory => 
+        fieldContains(signatory.firstName) ||
+        fieldContains(signatory.lastName) ||
+        fieldContains(signatory.phoneNumber) ||
+        fieldContains(signatory.email) ||
+        fieldContains(signatory.identificationNumber) ||
+        fieldContains(signatory.kraPin) ||
+        fieldContains(signatory.position)
+      )) ||
+      
+      // Search in joint members information
+      (member.jointMembers && member.jointMembers.some(jointMember => 
+        fieldContains(jointMember.firstName) ||
+        fieldContains(jointMember.lastName) ||
+        fieldContains(jointMember.phoneNumber) ||
+        fieldContains(jointMember.email) ||
+        fieldContains(jointMember.identificationNumber) ||
+        fieldContains(jointMember.kraPin)
+      ))
+    );
+  });
 
   const handleMemberSelect = (member) => {
     setSelectedMember(member);
+  };
+
+  const handleMemberDoubleClick = (member) => {
+    setSelectedMember(member);
+    onSelectMember(member);
+    onClose();
   };
 
   const handleConfirmSelection = () => {
@@ -73,7 +193,7 @@ function MemberLookupModal({ isOpen, onClose, onSelectMember }) {
               <FiSearch className="search-icon" />
               <input
                 type="text"
-                placeholder="Search members..."
+                placeholder="Search by name, phone, KRA PIN, ID number, email, address..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="search-input"
@@ -99,17 +219,18 @@ function MemberLookupModal({ isOpen, onClose, onSelectMember }) {
                 <thead>
                   <tr>
                     <th>Select</th>
+                    <th>Member Name</th>
                     <th>Member No</th>
-                    <th>First Name</th>
-                    <th>Last Name</th>
+                    <th>Phone</th>
                     <th>ID Number</th>
+                    <th>Member Type</th>
                     <th>Status</th>
                   </tr>
                 </thead>
                 <tbody>
                   {filteredMembers.length === 0 ? (
                     <tr>
-                      <td colSpan="6" className="no-data">
+                      <td colSpan="7" className="no-data">
                         {searchTerm ? 'No members found matching your search' : 'No members available'}
                       </td>
                     </tr>
@@ -119,6 +240,7 @@ function MemberLookupModal({ isOpen, onClose, onSelectMember }) {
                         key={member.id} 
                         className={selectedMember?.id === member.id ? 'selected' : ''}
                         onClick={() => handleMemberSelect(member)}
+                        onDoubleClick={() => handleMemberDoubleClick(member)}
                         style={{ cursor: 'pointer' }}
                       >
                         <td>
@@ -129,10 +251,11 @@ function MemberLookupModal({ isOpen, onClose, onSelectMember }) {
                             onChange={() => handleMemberSelect(member)}
                           />
                         </td>
-                        <td>{member.memberNo}</td>
-                        <td>{member.firstName}</td>
-                        <td>{member.lastName}</td>
-                        <td>{member.idNumber || '-'}</td>
+                        <td>{getMemberName(member)}</td>
+                        <td>{member.memberNo || '-'}</td>
+                        <td>{member.personalPhone || member.alternativePhone || '-'}</td>
+                        <td>{member.identificationNumber || '-'}</td>
+                        <td>{member.category || '-'}</td>
                         <td>
                           <span className={`status-badge status-${member.status.toLowerCase()}`}>
                             {member.status}

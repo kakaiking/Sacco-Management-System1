@@ -67,6 +67,34 @@ router.get("/", validateToken, logViewOperation("Sacco"), async (req, res) => {
   }
 });
 
+// Get sacco name by saccoId
+router.get("/name/:saccoId", validateToken, logViewOperation("Sacco"), async (req, res) => {
+  try {
+    const { saccoId } = req.params;
+    
+    // Validate saccoId parameter
+    if (!saccoId) {
+      return respond(res, 400, "saccoId is required");
+    }
+    
+    const sacco = await Sacco.findOne({ 
+      where: { 
+        saccoId: saccoId,
+        isDeleted: 0 
+      },
+      attributes: ['saccoId', 'saccoName']
+    });
+    
+    if (!sacco) {
+      return respond(res, 404, "Sacco not found");
+    }
+    
+    respond(res, 200, "Sacco name fetched successfully", sacco);
+  } catch (err) {
+    handleError(res, err, "Failed to fetch sacco name");
+  }
+});
+
 // Get one
 router.get("/:id", validateToken, logViewOperation("Sacco"), async (req, res) => {
   try {

@@ -6,6 +6,11 @@ import { useSnackbar } from "../helpers/SnackbarContext";
 import { AuthContext } from "../helpers/AuthContext";
 import DashboardWrapper from '../components/DashboardWrapper';
 import SaccoLookupModal from '../components/SaccoLookupModal';
+import InterestTypesLookupModal from '../components/InterestTypesLookupModal';
+import InterestFrequencyLookupModal from '../components/InterestFrequencyLookupModal';
+import InterestCalculationRulesLookupModal from '../components/InterestCalculationRulesLookupModal';
+import ChargesLookupModal from '../components/ChargesLookupModal';
+import CurrencyLookupModal from '../components/CurrencyLookupModal';
 
 function ProductForm() {
   const history = useHistory();
@@ -26,6 +31,24 @@ function ProductForm() {
     description: "",
     isSpecial: false,
     maxSpecialUsers: "",
+    // Account type fields
+    accountType: "MEMBER",
+    bosaFosa: "BOSA",
+    debitCredit: "DEBIT",
+    appliedOnMemberOnboarding: false,
+    isWithdrawable: true,
+    withdrawableFrom: "",
+    interestRate: "",
+    interestType: "",
+    interestCalculationRule: "",
+    interestFrequency: "",
+    isCreditInterest: false,
+    isDebitInterest: false,
+    needGuarantors: false,
+    maxGuarantors: "",
+    minGuarantors: "",
+    chargeIds: "",
+    currency: "KES",
     createdBy: "",
     createdOn: "",
     modifiedBy: "",
@@ -34,8 +57,20 @@ function ProductForm() {
     approvedOn: "",
   });
 
-  // Sacco lookup modal state
+  // Lookup modal states
   const [isSaccoModalOpen, setIsSaccoModalOpen] = useState(false);
+  const [isInterestTypeModalOpen, setIsInterestTypeModalOpen] = useState(false);
+  const [isInterestFrequencyModalOpen, setIsInterestFrequencyModalOpen] = useState(false);
+  const [isInterestCalculationRuleModalOpen, setIsInterestCalculationRuleModalOpen] = useState(false);
+  const [isChargesModalOpen, setIsChargesModalOpen] = useState(false);
+  const [isCurrencyModalOpen, setIsCurrencyModalOpen] = useState(false);
+  
+  // Selected lookup values
+  const [selectedInterestType, setSelectedInterestType] = useState(null);
+  const [selectedInterestFrequency, setSelectedInterestFrequency] = useState(null);
+  const [selectedInterestCalculationRule, setSelectedInterestCalculationRule] = useState(null);
+  const [selectedCharges, setSelectedCharges] = useState([]);
+  const [selectedCurrency, setSelectedCurrency] = useState(null);
 
   useEffect(() => {
     // Only redirect if authentication check is complete and user is not authenticated
@@ -67,6 +102,24 @@ function ProductForm() {
           description: data.description || "",
           isSpecial: data.isSpecial || false,
           maxSpecialUsers: data.maxSpecialUsers || "",
+          // Account type fields
+          accountType: data.accountType || "MEMBER",
+          bosaFosa: data.bosaFosa || "BOSA",
+          debitCredit: data.debitCredit || "DEBIT",
+          appliedOnMemberOnboarding: data.appliedOnMemberOnboarding || false,
+          isWithdrawable: data.isWithdrawable !== undefined ? data.isWithdrawable : true,
+          withdrawableFrom: data.withdrawableFrom || "",
+          interestRate: data.interestRate || "",
+          interestType: data.interestType || "",
+          interestCalculationRule: data.interestCalculationRule || "",
+          interestFrequency: data.interestFrequency || "",
+          isCreditInterest: data.isCreditInterest || false,
+          isDebitInterest: data.isDebitInterest || false,
+          needGuarantors: data.needGuarantors || false,
+          maxGuarantors: data.maxGuarantors || "",
+          minGuarantors: data.minGuarantors || "",
+          chargeIds: data.chargeIds || "",
+          currency: data.currency || "KES",
           createdBy: data.createdBy || "",
           createdOn: data.createdOn || "",
           modifiedBy: data.modifiedBy || "",
@@ -74,14 +127,104 @@ function ProductForm() {
           approvedBy: data.approvedBy || "",
           approvedOn: data.approvedOn || "",
         });
+
+        // Load related lookup data for editing
+        await loadLookupData(data);
       } else {
-        // Generate product ID for new products
-        setForm(prev => ({ ...prev, productId: generateProductId() }));
+        // Generate product ID for new products and set saccoId from auth state
+        setForm(prev => ({ 
+          ...prev, 
+          productId: generateProductId(),
+          saccoId: authState.saccoId || ''
+        }));
       }
     };
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id, isCreate]);
+
+  // Function to load lookup data for editing
+  const loadLookupData = async (productData) => {
+    try {
+      // Load interest type if exists
+      if (productData.interestType) {
+        try {
+          const interestTypesRes = await axios.get('http://localhost:3001/interest-types', {
+            headers: { accessToken: localStorage.getItem('accessToken') }
+          });
+          const interestType = interestTypesRes.data.entity?.find(it => it.interestTypeId === productData.interestType);
+          if (interestType) {
+            setSelectedInterestType(interestType);
+          }
+        } catch (error) {
+          console.error('Error loading interest type:', error);
+        }
+      }
+
+      // Load interest frequency if exists
+      if (productData.interestFrequency) {
+        try {
+          const interestFreqRes = await axios.get('http://localhost:3001/interest-frequency', {
+            headers: { accessToken: localStorage.getItem('accessToken') }
+          });
+          const interestFreq = interestFreqRes.data.entity?.find(freq => freq.interestFrequencyId === productData.interestFrequency);
+          if (interestFreq) {
+            setSelectedInterestFrequency(interestFreq);
+          }
+        } catch (error) {
+          console.error('Error loading interest frequency:', error);
+        }
+      }
+
+      // Load interest calculation rule if exists
+      if (productData.interestCalculationRule) {
+        try {
+          const calcRulesRes = await axios.get('http://localhost:3001/interest-calculation-rules', {
+            headers: { accessToken: localStorage.getItem('accessToken') }
+          });
+          const calcRule = calcRulesRes.data.entity?.find(cr => cr.ruleId === productData.interestCalculationRule);
+          if (calcRule) {
+            setSelectedInterestCalculationRule(calcRule);
+          }
+        } catch (error) {
+          console.error('Error loading interest calculation rule:', error);
+        }
+      }
+
+      // Load charges if exists
+      if (productData.chargeIds) {
+        try {
+          const chargesRes = await axios.get('http://localhost:3001/charges', {
+            headers: { accessToken: localStorage.getItem('accessToken') }
+          });
+          const chargeIds = productData.chargeIds.split(',').map(id => id.trim());
+          const charges = chargesRes.data?.filter(charge => chargeIds.includes(charge.chargeId));
+          if (charges && charges.length > 0) {
+            setSelectedCharges(charges);
+          }
+        } catch (error) {
+          console.error('Error loading charges:', error);
+        }
+      }
+
+      // Load currency if exists
+      if (productData.currency) {
+        try {
+          const currenciesRes = await axios.get('http://localhost:3001/currencies', {
+            headers: { accessToken: localStorage.getItem('accessToken') }
+          });
+          const currency = currenciesRes.data.entity?.find(curr => curr.currencyCode === productData.currency);
+          if (currency) {
+            setSelectedCurrency(currency);
+          }
+        } catch (error) {
+          console.error('Error loading currency:', error);
+        }
+      }
+    } catch (error) {
+      console.error('Error loading lookup data:', error);
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -127,6 +270,82 @@ function ProductForm() {
   const handleSelectSacco = (selectedSacco) => {
     setForm(prev => ({ ...prev, saccoId: selectedSacco.saccoId }));
     setIsSaccoModalOpen(false);
+  };
+
+  // Interest Type lookup handlers
+  const handleOpenInterestTypeModal = () => {
+    setIsInterestTypeModalOpen(true);
+  };
+
+  const handleCloseInterestTypeModal = () => {
+    setIsInterestTypeModalOpen(false);
+  };
+
+  const handleSelectInterestType = (interestType) => {
+    setSelectedInterestType(interestType);
+    setForm(prev => ({ ...prev, interestType: interestType.interestTypeId }));
+    setIsInterestTypeModalOpen(false);
+  };
+
+  // Interest Frequency lookup handlers
+  const handleOpenInterestFrequencyModal = () => {
+    setIsInterestFrequencyModalOpen(true);
+  };
+
+  const handleCloseInterestFrequencyModal = () => {
+    setIsInterestFrequencyModalOpen(false);
+  };
+
+  const handleSelectInterestFrequency = (interestFrequency) => {
+    setSelectedInterestFrequency(interestFrequency);
+    setForm(prev => ({ ...prev, interestFrequency: interestFrequency.interestFrequencyId }));
+    setIsInterestFrequencyModalOpen(false);
+  };
+
+  // Interest Calculation Rule lookup handlers
+  const handleOpenInterestCalculationRuleModal = () => {
+    setIsInterestCalculationRuleModalOpen(true);
+  };
+
+  const handleCloseInterestCalculationRuleModal = () => {
+    setIsInterestCalculationRuleModalOpen(false);
+  };
+
+  const handleSelectInterestCalculationRule = (calculationRule) => {
+    setSelectedInterestCalculationRule(calculationRule);
+    setForm(prev => ({ ...prev, interestCalculationRule: calculationRule.ruleId }));
+    setIsInterestCalculationRuleModalOpen(false);
+  };
+
+  // Charges lookup handlers
+  const handleOpenChargesModal = () => {
+    setIsChargesModalOpen(true);
+  };
+
+  const handleCloseChargesModal = () => {
+    setIsChargesModalOpen(false);
+  };
+
+  const handleSelectCharges = (charges) => {
+    setSelectedCharges(charges);
+    const chargeIds = charges.map(charge => charge.chargeId).join(',');
+    setForm(prev => ({ ...prev, chargeIds: chargeIds }));
+    setIsChargesModalOpen(false);
+  };
+
+  // Currency lookup handlers
+  const handleOpenCurrencyModal = () => {
+    setIsCurrencyModalOpen(true);
+  };
+
+  const handleCloseCurrencyModal = () => {
+    setIsCurrencyModalOpen(false);
+  };
+
+  const handleSelectCurrency = (currency) => {
+    setSelectedCurrency(currency);
+    setForm(prev => ({ ...prev, currency: currency.currencyCode }));
+    setIsCurrencyModalOpen(false);
   };
 
   return (
@@ -214,30 +433,33 @@ function ProductForm() {
             </div>
 
             <div className="grid2">
-              <label>
-                Sacco ID
-                <div className="role-input-wrapper">
-                  <input
-                    type="text"
-                    className="input"
-                    value={form.saccoId}
-                    onChange={e => setForm({ ...form, saccoId: e.target.value })}
-                    disabled={!isCreate && !isEdit}
-                    placeholder="Select a sacco"
-                    readOnly={true}
-                  />
-                  {(isCreate || isEdit) && (
-                    <button
-                      type="button"
-                      className="role-search-btn"
-                      onClick={handleOpenSaccoModal}
-                      title="Search saccos"
-                    >
-                      <FiSearch />
-                    </button>
-                  )}
-                </div>
-              </label>
+              {/* Sacco ID field - hidden for create mode, shown for edit mode */}
+              {!isCreate && (
+                <label>
+                  Sacco ID
+                  <div className="role-input-wrapper">
+                    <input
+                      type="text"
+                      className="input"
+                      value={form.saccoId}
+                      onChange={e => setForm({ ...form, saccoId: e.target.value })}
+                      disabled={!isCreate && !isEdit}
+                      placeholder="Select a sacco"
+                      readOnly={true}
+                    />
+                    {(isCreate || isEdit) && (
+                      <button
+                        type="button"
+                        className="role-search-btn"
+                        onClick={handleOpenSaccoModal}
+                        title="Search saccos"
+                      >
+                        <FiSearch />
+                      </button>
+                    )}
+                  </div>
+                </label>
+              )}
 
               <label>
                 Product Type
@@ -252,19 +474,7 @@ function ProductForm() {
                 </select>
               </label>
 
-              <label>
-                Product Status
-                <select
-                  className="input"
-                  value={form.productStatus}
-                  onChange={e => setForm({ ...form, productStatus: e.target.value })}
-                  disabled={!isCreate && !isEdit}
-                >
-                  <option value="Pending">Pending</option>
-                  <option value="Approved">Approved</option>
-                  <option value="Rejected">Rejected</option>
-                </select>
-              </label>
+              {/* Product Status field - hidden as it defaults to Pending */}
 
               <label>
                 Max Special Users
@@ -303,6 +513,304 @@ function ProductForm() {
                 <label htmlFor="isSpecial" style={{ margin: 0, cursor: "pointer" }}>
                   Is Special
                 </label>
+              </div>
+            </div>
+
+            {/* Account Type Configuration Section */}
+            <div style={{ 
+              border: "1px solid var(--border)", 
+              borderRadius: "8px", 
+              padding: "20px", 
+              marginBottom: "20px",
+              backgroundColor: "var(--surface-1)"
+            }}>
+              <h3 style={{ 
+                marginBottom: "16px", 
+                color: "var(--primary-700)",
+                fontSize: "16px",
+                fontWeight: "600"
+              }}>
+                Account Type Configuration
+              </h3>
+              
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", marginBottom: "16px" }}>
+                <label>
+                  Account Type
+                  <select
+                    className="input"
+                    value={form.accountType}
+                    onChange={e => setForm({ ...form, accountType: e.target.value })}
+                    disabled={!isCreate && !isEdit}
+                  >
+                    <option value="MEMBER">MEMBER</option>
+                    <option value="GL">GL</option>
+                  </select>
+                </label>
+
+                <label>
+                  BOSA/FOSA
+                  <select
+                    className="input"
+                    value={form.bosaFosa}
+                    onChange={e => setForm({ ...form, bosaFosa: e.target.value })}
+                    disabled={!isCreate && !isEdit}
+                  >
+                    <option value="BOSA">BOSA</option>
+                    <option value="FOSA">FOSA</option>
+                  </select>
+                </label>
+
+                <label>
+                  Debit/Credit
+                  <select
+                    className="input"
+                    value={form.debitCredit}
+                    onChange={e => setForm({ ...form, debitCredit: e.target.value })}
+                    disabled={!isCreate && !isEdit}
+                  >
+                    <option value="DEBIT">DEBIT</option>
+                    <option value="CREDIT">CREDIT</option>
+                  </select>
+                </label>
+
+                <label>
+                  Currency
+                  <div className="role-input-wrapper">
+                    <input
+                      className="input"
+                      value={selectedCurrency ? `${selectedCurrency.currencyCode} - ${selectedCurrency.currencyName}` : form.currency}
+                      onChange={e => setForm({ ...form, currency: e.target.value })}
+                      disabled={!isCreate && !isEdit}
+                      placeholder="Select currency"
+                      readOnly={true}
+                    />
+                    {(isCreate || isEdit) && (
+                      <button
+                        type="button"
+                        className="role-search-btn"
+                        onClick={handleOpenCurrencyModal}
+                        title="Search currencies"
+                      >
+                        <FiSearch />
+                      </button>
+                    )}
+                  </div>
+                </label>
+              </div>
+
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", marginBottom: "16px" }}>
+                <label>
+                  Interest Rate (%)
+                  <input
+                    type="number"
+                    step="0.01"
+                    className="input"
+                    value={form.interestRate}
+                    onChange={e => setForm({ ...form, interestRate: e.target.value })}
+                    disabled={!isCreate && !isEdit}
+                    placeholder="e.g., 5.5"
+                  />
+                </label>
+
+                <label>
+                  Interest Type
+                  <div className="role-input-wrapper">
+                    <input
+                      className="input"
+                      value={selectedInterestType ? selectedInterestType.interestTypeName : form.interestType}
+                      onChange={e => setForm({ ...form, interestType: e.target.value })}
+                      disabled={!isCreate && !isEdit}
+                      placeholder="Select interest type"
+                      readOnly={true}
+                    />
+                    {(isCreate || isEdit) && (
+                      <button
+                        type="button"
+                        className="role-search-btn"
+                        onClick={handleOpenInterestTypeModal}
+                        title="Search interest types"
+                      >
+                        <FiSearch />
+                      </button>
+                    )}
+                  </div>
+                </label>
+
+                <label>
+                  Interest Frequency
+                  <div className="role-input-wrapper">
+                    <input
+                      className="input"
+                      value={selectedInterestFrequency ? selectedInterestFrequency.interestFrequencyName : form.interestFrequency}
+                      onChange={e => setForm({ ...form, interestFrequency: e.target.value })}
+                      disabled={!isCreate && !isEdit}
+                      placeholder="Select interest frequency"
+                      readOnly={true}
+                    />
+                    {(isCreate || isEdit) && (
+                      <button
+                        type="button"
+                        className="role-search-btn"
+                        onClick={handleOpenInterestFrequencyModal}
+                        title="Search interest frequencies"
+                      >
+                        <FiSearch />
+                      </button>
+                    )}
+                  </div>
+                </label>
+
+                <label>
+                  Withdrawable From
+                  <input
+                    type="date"
+                    className="input"
+                    value={form.withdrawableFrom}
+                    onChange={e => setForm({ ...form, withdrawableFrom: e.target.value })}
+                    disabled={!isCreate && !isEdit}
+                  />
+                </label>
+              </div>
+
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", marginBottom: "16px" }}>
+                <label>
+                  Min Guarantors
+                  <input
+                    type="number"
+                    className="input"
+                    value={form.minGuarantors}
+                    onChange={e => setForm({ ...form, minGuarantors: e.target.value })}
+                    disabled={!isCreate && !isEdit}
+                    placeholder="e.g., 1"
+                  />
+                </label>
+
+                <label>
+                  Max Guarantors
+                  <input
+                    type="number"
+                    className="input"
+                    value={form.maxGuarantors}
+                    onChange={e => setForm({ ...form, maxGuarantors: e.target.value })}
+                    disabled={!isCreate && !isEdit}
+                    placeholder="e.g., 3"
+                  />
+                </label>
+
+                <label>
+                  Charge IDs
+                  <div className="role-input-wrapper">
+                    <input
+                      className="input"
+                      value={selectedCharges.length > 0 ? selectedCharges.map(c => c.chargeId).join(', ') : form.chargeIds}
+                      onChange={e => setForm({ ...form, chargeIds: e.target.value })}
+                      disabled={!isCreate && !isEdit}
+                      placeholder="Select charges"
+                      readOnly={true}
+                    />
+                    {(isCreate || isEdit) && (
+                      <button
+                        type="button"
+                        className="role-search-btn"
+                        onClick={handleOpenChargesModal}
+                        title="Search charges"
+                      >
+                        <FiSearch />
+                      </button>
+                    )}
+                  </div>
+                </label>
+
+                <label>
+                  Interest Calculation Rule
+                  <div className="role-input-wrapper">
+                    <input
+                      className="input"
+                      value={selectedInterestCalculationRule ? selectedInterestCalculationRule.ruleName : form.interestCalculationRule}
+                      onChange={e => setForm({ ...form, interestCalculationRule: e.target.value })}
+                      disabled={!isCreate && !isEdit}
+                      placeholder="Select calculation rule"
+                      readOnly={true}
+                    />
+                    {(isCreate || isEdit) && (
+                      <button
+                        type="button"
+                        className="role-search-btn"
+                        onClick={handleOpenInterestCalculationRuleModal}
+                        title="Search calculation rules"
+                      >
+                        <FiSearch />
+                      </button>
+                    )}
+                  </div>
+                </label>
+              </div>
+
+              <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                  <input
+                    type="checkbox"
+                    id="appliedOnMemberOnboarding"
+                    checked={form.appliedOnMemberOnboarding}
+                    onChange={e => setForm({ ...form, appliedOnMemberOnboarding: e.target.checked })}
+                    disabled={!isCreate && !isEdit}
+                  />
+                  <label htmlFor="appliedOnMemberOnboarding" style={{ margin: 0, cursor: "pointer" }}>
+                    Applied on Member Onboarding
+                  </label>
+                </div>
+
+                <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                  <input
+                    type="checkbox"
+                    id="isWithdrawable"
+                    checked={form.isWithdrawable}
+                    onChange={e => setForm({ ...form, isWithdrawable: e.target.checked })}
+                    disabled={!isCreate && !isEdit}
+                  />
+                  <label htmlFor="isWithdrawable" style={{ margin: 0, cursor: "pointer" }}>
+                    Is Withdrawable
+                  </label>
+                </div>
+
+                <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                  <input
+                    type="checkbox"
+                    id="isCreditInterest"
+                    checked={form.isCreditInterest}
+                    onChange={e => setForm({ ...form, isCreditInterest: e.target.checked })}
+                    disabled={!isCreate && !isEdit}
+                  />
+                  <label htmlFor="isCreditInterest" style={{ margin: 0, cursor: "pointer" }}>
+                    Is Credit Interest
+                  </label>
+                </div>
+
+                <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                  <input
+                    type="checkbox"
+                    id="isDebitInterest"
+                    checked={form.isDebitInterest}
+                    onChange={e => setForm({ ...form, isDebitInterest: e.target.checked })}
+                    disabled={!isCreate && !isEdit}
+                  />
+                  <label htmlFor="isDebitInterest" style={{ margin: 0, cursor: "pointer" }}>
+                    Is Debit Interest
+                  </label>
+                </div>
+
+                <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                  <input
+                    type="checkbox"
+                    id="needGuarantors"
+                    checked={form.needGuarantors}
+                    onChange={e => setForm({ ...form, needGuarantors: e.target.checked })}
+                    disabled={!isCreate && !isEdit}
+                  />
+                  <label htmlFor="needGuarantors" style={{ margin: 0, cursor: "pointer" }}>
+                    Need Guarantors
+                  </label>
+                </div>
               </div>
             </div>
 
@@ -391,12 +899,43 @@ function ProductForm() {
         </section>
       </main>
 
-      {/* Sacco Lookup Modal */}
+      {/* Lookup Modals */}
       <SaccoLookupModal
         isOpen={isSaccoModalOpen}
         onClose={handleCloseSaccoModal}
         onSelectSacco={handleSelectSacco}
         selectedSaccoId={form.saccoId}
+      />
+      
+      <InterestTypesLookupModal
+        isOpen={isInterestTypeModalOpen}
+        onClose={handleCloseInterestTypeModal}
+        onSelectInterestType={handleSelectInterestType}
+      />
+      
+      <InterestFrequencyLookupModal
+        isOpen={isInterestFrequencyModalOpen}
+        onClose={handleCloseInterestFrequencyModal}
+        onSelectInterestFrequency={handleSelectInterestFrequency}
+      />
+      
+      <InterestCalculationRulesLookupModal
+        isOpen={isInterestCalculationRuleModalOpen}
+        onClose={handleCloseInterestCalculationRuleModal}
+        onSelectCalculationRule={handleSelectInterestCalculationRule}
+      />
+      
+      <ChargesLookupModal
+        isOpen={isChargesModalOpen}
+        onClose={handleCloseChargesModal}
+        onSelectCharges={handleSelectCharges}
+        selectedChargeIds={selectedCharges.map(c => c.chargeId)}
+      />
+      
+      <CurrencyLookupModal
+        isOpen={isCurrencyModalOpen}
+        onClose={handleCloseCurrencyModal}
+        onSelectCurrency={handleSelectCurrency}
       />
     </DashboardWrapper>
   );
