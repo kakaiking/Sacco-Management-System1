@@ -19,7 +19,7 @@ const WindowTabs = () => {
           >
             <div className="window-tab-content">
               <span className="window-tab-title">
-                {window.title}
+                {window.tabTitle || window.title}
               </span>
             </div>
             <div className="window-tab-actions">

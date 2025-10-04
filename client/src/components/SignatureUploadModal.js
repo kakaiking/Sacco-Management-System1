@@ -66,7 +66,7 @@ function SignatureUploadModal({ isOpen, onClose, onFileSelect, title = "Upload S
 
   return (
     <div className="modal-overlay" onClick={handleClose}>
-      <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+      <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ height: '85vh', maxHeight: '700px' }}>
         <div className="modal-header">
           <h2>{title}</h2>
           <button className="modal-close" onClick={handleClose}>

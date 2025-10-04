@@ -39,7 +39,27 @@ module.exports = (sequelize, DataTypes) => {
     isDeleted: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 0 },
   }, {
     timestamps: false, // Disable automatic createdAt/updatedAt since we use our own createdOn/modifiedOn fields
-    tableName: 'Products' // Explicitly specify table name
+    tableName: 'Products', // Explicitly specify table name
+    hooks: {
+      beforeCreate: async (product) => {
+        // Auto-generate productId if not provided or empty
+        if (!product.productId || product.productId.trim() === '') {
+          const randomNum = Math.floor(100000 + Math.random() * 900000);
+          product.productId = `P-${randomNum}`;
+          
+          // Check if the generated ID already exists, regenerate if so
+          let attempts = 0;
+          while (attempts < 10) {
+            const existing = await Products.findOne({ where: { productId: product.productId } });
+            if (!existing) break;
+            
+            const newRandomNum = Math.floor(100000 + Math.random() * 900000);
+            product.productId = `P-${newRandomNum}`;
+            attempts++;
+          }
+        }
+      }
+    }
   });
 
   // Define associations

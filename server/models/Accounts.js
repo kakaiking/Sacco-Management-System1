@@ -41,6 +41,7 @@ module.exports = (sequelize, DataTypes) => {
     debitInterest: { type: DataTypes.DECIMAL(15, 2), allowNull: false, defaultValue: 0.00 },
     minimumBalance: { type: DataTypes.DECIMAL(15, 2), allowNull: false, defaultValue: 0.00 },
     fixedBalance: { type: DataTypes.DECIMAL(15, 2), allowNull: false, defaultValue: 0.00 },
+    signatories: { type: DataTypes.TEXT, allowNull: true },
     
     // Standard fields
     status: { type: DataTypes.STRING, allowNull: false, defaultValue: "Active" },
@@ -55,6 +56,22 @@ module.exports = (sequelize, DataTypes) => {
   }, {
     timestamps: false // Disable automatic createdAt/updatedAt
   });
+
+  // Instance method to manually recalculate balances
+  Accounts.prototype.recalculateBalances = function() {
+    const clearBalance = parseFloat(this.clearBalance || 0);
+    const unsupervisedCredits = parseFloat(this.unsupervisedCredits || 0);
+    const unsupervisedDebits = parseFloat(this.unsupervisedDebits || 0);
+    const frozenAmount = parseFloat(this.frozenAmount || 0);
+    const pendingCharges = parseFloat(this.pendingCharges || 0);
+    const unclearBalance = parseFloat(this.unclearBalance || 0);
+    const creditInterest = parseFloat(this.creditInterest || 0);
+    
+    this.availableBalance = clearBalance + unsupervisedCredits - unsupervisedDebits - frozenAmount - pendingCharges;
+    this.totalBalance = clearBalance + unclearBalance + creditInterest;
+    
+    return this;
+  };
 
   // Define associations
   Accounts.associate = (models) => {

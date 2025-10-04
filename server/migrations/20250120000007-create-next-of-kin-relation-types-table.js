@@ -3,9 +3,8 @@
 module.exports = {
   up: async (queryInterface, Sequelize) => {
     // Check if table already exists
-    const tableExists = await queryInterface.showAllTables().then(tables => 
-      tables.some(table => table.tableName === 'NextOfKinRelationTypes')
-    );
+    const tables = await queryInterface.showAllTables();
+    const tableExists = tables.includes('NextOfKinRelationTypes') || tables.includes('nextofkinrelationtypes');
     
     if (tableExists) {
       console.log('✅ NextOfKinRelationTypes table already exists - skipping migration');
@@ -78,8 +77,14 @@ module.exports = {
       foreignKeyConstraints: false
     });
 
-    // Add index on saccoId
-    await queryInterface.addIndex('NextOfKinRelationTypes', ['saccoId']);
+    // Add index on saccoId with explicit name and error handling
+    try {
+      await queryInterface.addIndex('NextOfKinRelationTypes', ['saccoId'], {
+        name: 'next_of_kin_relation_types_sacco_id'
+      });
+    } catch (err) {
+      console.log('Index next_of_kin_relation_types_sacco_id already exists or could not be created');
+    }
   },
 
   down: async (queryInterface, Sequelize) => {

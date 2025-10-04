@@ -18,10 +18,57 @@ const respond = (res, code, message, entity) => {
   res.status(code).json({ code, message, entity });
 };
 
+const safeParseJsonArray = (value) => {
+  if (!value) return [];
+
+  if (Array.isArray(value)) return value;
+
+  if (typeof value === "string") {
+    try {
+      const parsed = JSON.parse(value);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch (err) {
+      console.error("Failed to parse JSON array:", err.message);
+      return [];
+    }
+  }
+
+  return [];
+};
+
+const parseSignatories = (signatories) => safeParseJsonArray(signatories);
+
+const stringifySignatories = (signatories) => {
+  if (!Array.isArray(signatories) || signatories.length === 0) return null;
+
+  try {
+    return JSON.stringify(signatories);
+  } catch (err) {
+    console.error("Failed to stringify signatories payload:", err.message);
+    return null;
+  }
+};
+
+const enrichAccountData = (accountInstance) => {
+  if (!accountInstance) return null;
+
+  const data = accountInstance.toJSON();
+  data.signatories = parseSignatories(data.signatories);
+
+  if (data.member) {
+    data.member.authorizedSignatories = parseSignatories(data.member.authorizedSignatories);
+  }
+
+  return data;
+};
+
 // Get all accounts
 router.get("/", validateToken, logViewOperation("Account"), async (req, res) => {
   try {
     const { status, q, accountType } = req.query;
+    
+    console.log("=== FETCHING ACCOUNTS ===");
+    console.log("Query params:", { status, q, accountType });
     
     // Build where clause
     const whereClause = { isDeleted: 0 };
@@ -45,6 +92,8 @@ router.get("/", validateToken, logViewOperation("Account"), async (req, res) => 
       ];
     }
 
+    console.log("Where clause:", whereClause);
+
     const accounts = await Accounts.findAll({
       where: whereClause,
       include: [
@@ -56,10 +105,22 @@ router.get("/", validateToken, logViewOperation("Account"), async (req, res) => 
       ],
       order: [['createdOn', 'DESC']]
     });
+    
+    console.log(`Found ${accounts.length} accounts`);
     respond(res, 200, "Accounts fetched", accounts);
   } catch (err) {
-    console.error("Error fetching accounts:", err);
-    respond(res, 500, "Internal server error", null);
+    console.error("=== ERROR FETCHING ACCOUNTS ===");
+    console.error("Error name:", err.name);
+    console.error("Error message:", err.message);
+    console.error("Error stack:", err.stack);
+    if (err.original) {
+      console.error("Original error:", err.original);
+    }
+    if (err.sql) {
+      console.error("SQL:", err.sql);
+    }
+    console.error("=== END ERROR ===");
+    respond(res, 500, `Internal server error: ${err.message}`, null);
   }
 });
 
@@ -69,9 +130,9 @@ router.get("/member/:memberNo", validateToken, logViewOperation("Account"), asyn
     console.log("Fetching accounts for member number:", req.params.memberNo);
     
     const accounts = await Accounts.findAll({
-      where: { 
+      where: {
         memberNo: req.params.memberNo,
-        isDeleted: 0 
+        isDeleted: 0
       },
       include: [
         { model: Members, as: 'member' },
@@ -84,12 +145,13 @@ router.get("/member/:memberNo", validateToken, logViewOperation("Account"), asyn
     });
     
     console.log("Found accounts:", accounts.length);
-    respond(res, 200, "Member accounts fetched", accounts);
+    respond(res, 200, "Member accounts fetched", accounts.map(enrichAccountData));
   } catch (err) {
     console.error("Error fetching member accounts:", err);
     respond(res, 500, `Internal server error: ${err.message}`, null);
   }
 });
+
 
 // Get single account
 router.get("/:id", validateToken, logViewOperation("Account"), async (req, res) => {
@@ -104,7 +166,8 @@ router.get("/:id", validateToken, logViewOperation("Account"), async (req, res) 
       ]
     });
     if (!account || account.isDeleted) return respond(res, 404, "Account not found", null);
-    respond(res, 200, "Account fetched", account);
+
+    respond(res, 200, "Account fetched", enrichAccountData(account));
   } catch (err) {
     respond(res, 500, "Internal server error", null);
   }

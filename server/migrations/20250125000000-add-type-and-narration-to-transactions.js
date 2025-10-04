@@ -7,9 +7,9 @@ module.exports = {
     
     if (!tableDescription.type) {
       await queryInterface.addColumn('Transactions', 'type', {
-      type: Sequelize.ENUM('DEPOSIT', 'WITHDRAWAL', 'TRANSFER', 'OTHER'),
+      type: Sequelize.ENUM('TRANSFER', 'DEPOSIT', 'WITHDRAWAL', 'LOAN_DISBURSEMENT', 'LOAN_REPAYMENT', 'INTEREST_PAYMENT', 'FEE_COLLECTION', 'REFUND', 'ADJUSTMENT', 'OTHER'),
       allowNull: true,
-      comment: 'Transaction type: DEPOSIT, WITHDRAWAL, TRANSFER, or OTHER'
+      comment: 'Transaction type'
     });
     } else {
       console.log('Column type already exists in Transactions table - skipping');

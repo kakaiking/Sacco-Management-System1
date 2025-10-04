@@ -6,7 +6,6 @@ import { useSnackbar } from "../helpers/SnackbarContext";
 import { AuthContext } from "../helpers/AuthContext";
 import DashboardWrapper from '../components/DashboardWrapper';
 import RoleLookupModal from '../components/RoleLookupModal';
-import BranchLookupModal from '../components/BranchLookupModal';
 
 function UserForm() {
   const history = useHistory();
@@ -25,6 +24,7 @@ function UserForm() {
     lastName: "",
     phoneNumber: "",
     role: "",
+    saccoId: "",
     branchId: "",
     branchDisplay: "",
     status: "Pending Password",
@@ -42,9 +42,6 @@ function UserForm() {
 
   // Role lookup modal state
   const [isRoleModalOpen, setIsRoleModalOpen] = useState(false);
-  
-  // Branch lookup modal state
-  const [isBranchModalOpen, setIsBranchModalOpen] = useState(false);
 
   useEffect(() => {
     // Only redirect if authentication check is complete and user is not authenticated
@@ -52,6 +49,17 @@ function UserForm() {
       history.push("/login");
     }
   }, [authState, isLoading, history]);
+
+  // Auto-populate saccoId and branchId from auth state for new users
+  useEffect(() => {
+    if (authState && isCreate) {
+      setForm(prev => ({
+        ...prev,
+        saccoId: authState.saccoId || "",
+        branchId: authState.branchId || "",
+      }));
+    }
+  }, [authState, isCreate]);
 
   // Generate User ID for new users
   const generateUserId = () => {
@@ -74,6 +82,7 @@ function UserForm() {
           lastName: data.lastName || "",
           phoneNumber: data.phoneNumber || "",
           role: data.role || "User",
+          saccoId: data.saccoId || "",
           branchId: data.branchId || "",
           branchDisplay: data.branch?.branchName || "",
           status: data.status || "Pending Password",
@@ -126,24 +135,6 @@ function UserForm() {
   const handleSelectRole = (selectedRole) => {
     setForm(prev => ({ ...prev, role: selectedRole.roleName }));
     setIsRoleModalOpen(false);
-  };
-
-  // Branch lookup modal handlers
-  const handleOpenBranchModal = () => {
-    setIsBranchModalOpen(true);
-  };
-
-  const handleCloseBranchModal = () => {
-    setIsBranchModalOpen(false);
-  };
-
-  const handleSelectBranch = (selectedBranch) => {
-    setForm(prev => ({ 
-      ...prev, 
-      branchId: selectedBranch.branchId,
-      branchDisplay: selectedBranch.branchName 
-    }));
-    setIsBranchModalOpen(false);
   };
 
   const getStatusColor = (status) => {
@@ -284,44 +275,18 @@ function UserForm() {
                 )}
               </div>
             </label>
-            <label>Branch
-              <div className="role-input-wrapper">
+            {!isCreate && (
+              <label>Branch
                 <input 
                   type="text"
                   className="input" 
                   value={form.branchDisplay} 
-                  onChange={e => setForm({ ...form, branchDisplay: e.target.value })} 
-                  disabled={!isCreate && !isEdit}
-                  placeholder="Select a branch"
-                  readOnly={!isCreate && !isEdit}
+                  disabled={true}
+                  placeholder="Branch name"
+                  readOnly={true}
                 />
-                {(isCreate || isEdit) && (
-                  <button
-                    type="button"
-                    className="role-search-btn"
-                    onClick={handleOpenBranchModal}
-                    title="Search branches"
-                  >
-                    <FiSearch />
-                  </button>
-                )}
-              </div>
-            </label>
-            {/* {!isCreate && (
-              <label>Status
-                <select className="input" 
-                  value={form.status} 
-                  onChange={e => setForm({ ...form, status: e.target.value })} 
-                  disabled={!isEdit} 
-                >
-                  <option value="Pending Password">Pending Password</option>
-                  <option value="Pending">Pending</option>
-                  <option value="Active">Active</option>
-                  <option value="Inactive">Inactive</option>
-                  <option value="Locked">Locked</option>
-                </select>
               </label>
-            )} */}
+            )}
           </div>
 
           {(isCreate || isEdit) && (
@@ -433,13 +398,6 @@ function UserForm() {
         isOpen={isRoleModalOpen}
         onClose={handleCloseRoleModal}
         onSelectRole={handleSelectRole}
-      />
-
-      {/* Branch Lookup Modal */}
-      <BranchLookupModal
-        isOpen={isBranchModalOpen}
-        onClose={handleCloseBranchModal}
-        onSelectBranch={handleSelectBranch}
       />
     </DashboardWrapper>
   );

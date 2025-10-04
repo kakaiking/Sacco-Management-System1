@@ -1,7 +1,7 @@
 import React, { useContext, useEffect, useMemo, useState } from "react";
 import { useHistory } from "react-router-dom";
 import axios from "axios";
-import { FiEye, FiEdit3, FiTrash2, FiCheckCircle, FiClock, FiRotateCcw, FiXCircle } from "react-icons/fi";
+import { FiEye, FiEdit3, FiTrash2, FiCheckCircle, FiClock, FiRotateCcw, FiXCircle, FiRefreshCw } from "react-icons/fi";
 import { FaPlus } from 'react-icons/fa';
 import DashboardWrapper from '../components/DashboardWrapper';
 import Pagination from '../components/Pagination';
@@ -31,27 +31,39 @@ function GLAccountsManagement() {
   const [verifierRemarks, setVerifierRemarks] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  // Fetch GL Accounts function
+  const fetchGLAccounts = async (signal) => {
+    try {
+      const params = {};
+      if (statusFilter) params.status = statusFilter;
+      if (categoryFilter) params.category = categoryFilter;
+      if (search) params.q = search;
+      const res = await axios.get("http://localhost:3001/gl-accounts", {
+        headers: { accessToken: localStorage.getItem("accessToken") },
+        params,
+        signal,
+      });
+      const payload = res?.data?.entity ?? res?.data;
+      setGlAccounts(Array.isArray(payload) ? payload : []);
+    } catch {}
+  };
 
   useEffect(() => {
     const controller = new AbortController();
-    const fetchGLAccounts = async () => {
-      try {
-        const params = {};
-        if (statusFilter) params.status = statusFilter;
-        if (categoryFilter) params.category = categoryFilter;
-        if (search) params.q = search;
-        const res = await axios.get("http://localhost:3001/gl-accounts", {
-          headers: { accessToken: localStorage.getItem("accessToken") },
-          params,
-          signal: controller.signal,
-        });
-        const payload = res?.data?.entity ?? res?.data;
-        setGlAccounts(Array.isArray(payload) ? payload : []);
-      } catch {}
-    };
-    fetchGLAccounts();
+    fetchGLAccounts(controller.signal);
     return () => controller.abort();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [statusFilter, categoryFilter, search]);
+
+  // Manual refresh function
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    await fetchGLAccounts();
+    setTimeout(() => setIsRefreshing(false), 500); // Show spinner for at least 500ms
+    showMessage("GL Accounts refreshed successfully", "success");
+  };
 
   const counts = useMemo(() => {
     return glAccounts.reduce((acc, account) => {
@@ -289,6 +301,43 @@ function GLAccountsManagement() {
               <input className="searchInput" value={search} onChange={e => setSearch(e.target.value)} placeholder="Search GL accounts..." />
               <span className="searchIcon">🔍</span>
             </div>
+
+            <button
+              className="pill"
+              onClick={handleRefresh}
+              disabled={isRefreshing}
+              style={{
+                backgroundColor: "var(--primary-100)",
+                color: "var(--primary-700)",
+                border: "1px solid var(--primary-300)",
+                padding: "8px 12px",
+                borderRadius: "8px",
+                fontSize: "14px",
+                fontWeight: "600",
+                display: "flex",
+                alignItems: "center",
+                gap: "6px",
+                cursor: isRefreshing ? "not-allowed" : "pointer",
+                transition: "all 0.3s ease",
+                opacity: isRefreshing ? 0.6 : 1
+              }}
+              onMouseEnter={(e) => {
+                if (!isRefreshing) {
+                  e.target.style.backgroundColor = "var(--primary-200)";
+                }
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.backgroundColor = "var(--primary-100)";
+              }}
+              title="Refresh table"
+            >
+              <FiRefreshCw 
+                style={{ 
+                  animation: isRefreshing ? "spin 1s linear infinite" : "none"
+                }} 
+              />
+              {isRefreshing ? "Refreshing..." : "Refresh"}
+            </button>
 
             <button 
               className="pill" 

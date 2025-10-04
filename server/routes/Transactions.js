@@ -277,6 +277,88 @@ router.get("/reference/:referenceNumber", validateToken, logViewOperation("Trans
   }
 });
 
+// Get transactions by account ID (for account statements)
+router.get("/account/:accountId", validateToken, logViewOperation("Transaction"), async (req, res) => {
+  try {
+    const { accountId } = req.params;
+    const { fromDate, toDate, status } = req.query;
+    
+    console.log('=== FETCHING ACCOUNT TRANSACTIONS ===');
+    console.log(`Account ID: ${accountId}`);
+    console.log(`From Date: ${fromDate}`);
+    console.log(`To Date: ${toDate}`);
+    console.log(`Status Filter: ${status}`);
+    
+    const where = { 
+      accountId: accountId,
+      isDeleted: 0,
+      status: { [Op.ne]: "Deleted" }
+    };
+    
+    if (status) where.status = status;
+    
+    // Add date filter if provided
+    if (fromDate && toDate) {
+      where.createdOn = {
+        [Op.between]: [new Date(fromDate), new Date(toDate + ' 23:59:59')]
+      };
+    } else if (fromDate) {
+      where.createdOn = {
+        [Op.gte]: new Date(fromDate)
+      };
+    } else if (toDate) {
+      where.createdOn = {
+        [Op.lte]: new Date(toDate + ' 23:59:59')
+      };
+    }
+    
+    console.log('Where clause:', JSON.stringify(where, null, 2));
+    
+    const transactions = await Transactions.findAll({ 
+      where, 
+      include: [
+        { model: Sacco, as: 'sacco' },
+        { 
+          model: Accounts, 
+          as: 'memberAccount',
+          include: [
+            { model: Members, as: 'member' },
+            { model: Products, as: 'product' }
+          ],
+          required: false
+        },
+        { 
+          model: GLAccounts, 
+          as: 'glAccount',
+          include: [
+            { model: Sacco, as: 'sacco' }
+          ],
+          required: false
+        }
+      ],
+      order: [["createdOn", "ASC"], ["id", "ASC"]]
+    });
+    
+    console.log(`Found ${transactions.length} transactions for account ${accountId}`);
+    
+    if (transactions.length > 0) {
+      console.log('Sample transaction:', {
+        id: transactions[0].id,
+        accountId: transactions[0].accountId,
+        entryType: transactions[0].entryType,
+        amount: transactions[0].amount,
+        status: transactions[0].status,
+        createdOn: transactions[0].createdOn
+      });
+    }
+    
+    respond(res, 200, "Account transactions fetched", transactions);
+  } catch (err) {
+    console.error("Error fetching account transactions:", err);
+    respond(res, 500, `Server error: ${err.message}`, null);
+  }
+});
+
 // Create transaction with double-entry
 router.post("/", validateToken, logCreateOperation("Transaction"), async (req, res) => {
   const dbTransaction = await sequelize.transaction();
@@ -339,8 +421,6 @@ router.post("/", validateToken, logCreateOperation("Transaction"), async (req, r
     // Determine which accounts were found
     const debitAccount = debitMemberAccount || debitGLAccount;
     const creditAccount = creditMemberAccount || creditGLAccount;
-    const debitAccountType = debitMemberAccount ? 'MEMBER' : 'GL';
-    const creditAccountType = creditMemberAccount ? 'MEMBER' : 'GL';
 
     console.log("Debit account found:", !!debitAccount);
     console.log("Credit account found:", !!creditAccount);
@@ -386,20 +466,25 @@ router.post("/", validateToken, logCreateOperation("Transaction"), async (req, r
     
     console.log("Creating transaction entries...");
     
+    // Determine if transaction is being approved on creation
+    const status = data.status || "Pending";
+    const isApproved = status === "Approved";
+    
     // Create debit entry
     const debitEntry = await Transactions.create({
       transactionId: generateTransactionId(),
       referenceNumber,
       saccoId: data.saccoId,
       accountId: data.debitAccountId,
-      accountType: debitAccountType,
       entryType: 'DEBIT',
       amount: amount,
       type: data.type || null,
-      status: data.status || "Pending",
+      status: status,
       remarks: data.remarks || null,
       createdOn: new Date(),
       createdBy: username,
+      approvedBy: isApproved ? username : null,
+      approvedOn: isApproved ? new Date() : null,
     }, { transaction: dbTransaction });
 
     // Create credit entry
@@ -408,14 +493,15 @@ router.post("/", validateToken, logCreateOperation("Transaction"), async (req, r
       referenceNumber,
       saccoId: data.saccoId,
       accountId: data.creditAccountId,
-      accountType: creditAccountType,
       entryType: 'CREDIT',
       amount: amount,
       type: data.type || null,
-      status: data.status || "Pending",
+      status: status,
       remarks: data.remarks || null,
       createdOn: new Date(),
       createdBy: username,
+      approvedBy: isApproved ? username : null,
+      approvedOn: isApproved ? new Date() : null,
     }, { transaction: dbTransaction });
 
     console.log("Transaction entries created successfully");
@@ -425,20 +511,26 @@ router.post("/", validateToken, logCreateOperation("Transaction"), async (req, r
       console.log("Updating account balances for approved transaction...");
       
       // Update debit account balance (decrease clear balance)
-      if (debitAccountType === 'MEMBER') {
-        await Accounts.update(
+      if (debitMemberAccount) {
+        // Update in ONE query to avoid double-updates
+        await sequelize.query(
+          `UPDATE accounts 
+           SET clearBalance = clearBalance - :amount,
+               availableBalance = (clearBalance - :amount) + unsupervisedCredits - unsupervisedDebits - frozenAmount - pendingCharges,
+               modifiedOn = :modifiedOn,
+               modifiedBy = :modifiedBy
+           WHERE accountId = :accountId`,
           { 
-            clearBalance: sequelize.literal(`clearBalance - ${amount}`),
-            availableBalance: sequelize.literal(`availableBalance - ${amount}`),
-            modifiedOn: new Date(),
-            modifiedBy: username
-          },
-          { 
-            where: { accountId: data.debitAccountId },
+            replacements: { 
+              amount: amount,
+              accountId: data.debitAccountId,
+              modifiedOn: new Date(),
+              modifiedBy: username
+            },
             transaction: dbTransaction
           }
         );
-      } else {
+      } else if (debitGLAccount) {
         await GLAccounts.update(
           { 
             availableBalance: sequelize.literal(`availableBalance - ${amount}`),
@@ -453,20 +545,26 @@ router.post("/", validateToken, logCreateOperation("Transaction"), async (req, r
       }
 
       // Update credit account balance (increase clear balance)
-      if (creditAccountType === 'MEMBER') {
-        await Accounts.update(
+      if (creditMemberAccount) {
+        // Update in ONE query to avoid double-updates
+        await sequelize.query(
+          `UPDATE accounts 
+           SET clearBalance = clearBalance + :amount,
+               availableBalance = (clearBalance + :amount) + unsupervisedCredits - unsupervisedDebits - frozenAmount - pendingCharges,
+               modifiedOn = :modifiedOn,
+               modifiedBy = :modifiedBy
+           WHERE accountId = :accountId`,
           { 
-            clearBalance: sequelize.literal(`clearBalance + ${amount}`),
-            availableBalance: sequelize.literal(`availableBalance + ${amount}`),
-            modifiedOn: new Date(),
-            modifiedBy: username
-          },
-          { 
-            where: { accountId: data.creditAccountId },
+            replacements: { 
+              amount: amount,
+              accountId: data.creditAccountId,
+              modifiedOn: new Date(),
+              modifiedBy: username
+            },
             transaction: dbTransaction
           }
         );
-      } else {
+      } else if (creditGLAccount) {
         await GLAccounts.update(
           { 
             availableBalance: sequelize.literal(`availableBalance + ${amount}`),
@@ -483,31 +581,47 @@ router.post("/", validateToken, logCreateOperation("Transaction"), async (req, r
       console.log("Updating pending balances for transaction with status:", data.status);
       
       // Update pending balances for pending transactions
-      // Debit account: increase debitBalance (pending debit)
-      if (debitAccountType === 'MEMBER') {
-        await Accounts.update(
+      // BOTH debit and credit sides need to be updated
+      
+      // Debit account: increase unsupervisedDebits (pending debit)
+      if (debitMemberAccount) {
+        // Update in ONE query to avoid double-updates
+        await sequelize.query(
+          `UPDATE accounts 
+           SET unsupervisedDebits = unsupervisedDebits + :amount,
+               availableBalance = clearBalance + unsupervisedCredits - (unsupervisedDebits + :amount) - frozenAmount - pendingCharges,
+               modifiedOn = :modifiedOn,
+               modifiedBy = :modifiedBy
+           WHERE accountId = :accountId`,
           { 
-            debitBalance: sequelize.literal(`debitBalance + ${amount}`),
-            modifiedOn: new Date(),
-            modifiedBy: username
-          },
-          { 
-            where: { accountId: data.debitAccountId },
+            replacements: { 
+              amount: amount,
+              accountId: data.debitAccountId,
+              modifiedOn: new Date(),
+              modifiedBy: username
+            },
             transaction: dbTransaction
           }
         );
       }
 
-      // Credit account: increase creditBalance (pending credit)
-      if (creditAccountType === 'MEMBER') {
-        await Accounts.update(
+      // Credit account: increase unsupervisedCredits (pending credit)
+      if (creditMemberAccount) {
+        // Update in ONE query to avoid double-updates
+        await sequelize.query(
+          `UPDATE accounts 
+           SET unsupervisedCredits = unsupervisedCredits + :amount,
+               availableBalance = clearBalance + (unsupervisedCredits + :amount) - unsupervisedDebits - frozenAmount - pendingCharges,
+               modifiedOn = :modifiedOn,
+               modifiedBy = :modifiedBy
+           WHERE accountId = :accountId`,
           { 
-            creditBalance: sequelize.literal(`creditBalance + ${amount}`),
-            modifiedOn: new Date(),
-            modifiedBy: username
-          },
-          { 
-            where: { accountId: data.creditAccountId },
+            replacements: { 
+              amount: amount,
+              accountId: data.creditAccountId,
+              modifiedOn: new Date(),
+              modifiedBy: username
+            },
             transaction: dbTransaction
           }
         );
@@ -547,181 +661,6 @@ router.post("/", validateToken, logCreateOperation("Transaction"), async (req, r
   } catch (err) {
     await dbTransaction.rollback();
     console.error("Error creating transaction:", err);
-    respond(res, 500, `Server error: ${err.message}`, null);
-  }
-});
-
-// Test endpoint without authentication
-router.post("/test", async (req, res) => {
-  const dbTransaction = await sequelize.transaction();
-  
-  try {
-    const data = req.body || {};
-    const username = "test-user";
-    
-    console.log("TEST: Creating transaction with data:", data);
-    
-    // Validate required fields
-    if (!data.saccoId) {
-      await dbTransaction.rollback();
-      return respond(res, 400, "Sacco ID is required", null);
-    }
-    if (!data.debitAccountId) {
-      await dbTransaction.rollback();
-      return respond(res, 400, "Debit Account ID is required", null);
-    }
-    if (!data.creditAccountId) {
-      await dbTransaction.rollback();
-      return respond(res, 400, "Credit Account ID is required", null);
-    }
-    if (!data.amount || data.amount <= 0) {
-      await dbTransaction.rollback();
-      return respond(res, 400, "Valid amount is required", null);
-    }
-
-    // Check if debit and credit accounts are different
-    if (data.debitAccountId === data.creditAccountId) {
-      await dbTransaction.rollback();
-      return respond(res, 400, "Debit and credit accounts cannot be the same", null);
-    }
-
-    console.log("TEST: Looking up accounts...");
-    
-    // Verify accounts exist and belong to the same sacco
-    const [debitAccount, creditAccount] = await Promise.all([
-      Accounts.findOne({ 
-        where: { accountId: data.debitAccountId },
-        include: [{ model: Members, as: 'member' }],
-        transaction: dbTransaction
-      }),
-      Accounts.findOne({ 
-        where: { accountId: data.creditAccountId },
-        include: [{ model: Members, as: 'member' }],
-        transaction: dbTransaction
-      })
-    ]);
-
-    console.log("TEST: Debit account found:", !!debitAccount);
-    console.log("TEST: Credit account found:", !!creditAccount);
-
-    if (!debitAccount || !creditAccount) {
-      await dbTransaction.rollback();
-      return respond(res, 400, "One or both accounts not found", null);
-    }
-
-    if (debitAccount.saccoId !== data.saccoId || creditAccount.saccoId !== data.saccoId) {
-      await dbTransaction.rollback();
-      return respond(res, 400, "Accounts must belong to the same SACCO", null);
-    }
-
-    // Check if debit account has sufficient balance (for GL accounts)
-    if (debitAccount.accountType === 'GL' && debitAccount.availableBalance < parseFloat(data.amount)) {
-      await dbTransaction.rollback();
-      return respond(res, 400, "Insufficient balance in debit account", null);
-    }
-
-    const referenceNumber = generateReferenceNumber();
-    const amount = parseFloat(data.amount);
-    
-    console.log("TEST: Creating transaction entries...");
-    
-    // Create debit entry
-    const debitEntry = await Transactions.create({
-      transactionId: generateTransactionId(),
-      referenceNumber,
-      saccoId: data.saccoId,
-      accountId: data.debitAccountId,
-      entryType: 'DEBIT',
-      amount: amount,
-      type: data.type || null,
-      status: data.status || "Pending",
-      remarks: data.remarks || null,
-      createdOn: new Date(),
-      createdBy: username,
-    }, { transaction: dbTransaction });
-
-    // Create credit entry
-    const creditEntry = await Transactions.create({
-      transactionId: generateTransactionId(),
-      referenceNumber,
-      saccoId: data.saccoId,
-      accountId: data.creditAccountId,
-      accountType: creditAccountType,
-      entryType: 'CREDIT',
-      amount: amount,
-      type: data.type || null,
-      status: data.status || "Pending",
-      remarks: data.remarks || null,
-      createdOn: new Date(),
-      createdBy: username,
-    }, { transaction: dbTransaction });
-
-    console.log("TEST: Transaction entries created successfully");
-
-    // Update account balances if transaction is approved
-    if (data.status === "Approved") {
-      console.log("TEST: Updating account balances...");
-      
-      // Debit account: decrease balance (for asset accounts)
-      await Accounts.update(
-        { 
-          availableBalance: sequelize.literal(`availableBalance - ${amount}`),
-          modifiedOn: new Date(),
-          modifiedBy: username
-        },
-        { 
-          where: { accountId: data.debitAccountId },
-          transaction: dbTransaction
-        }
-      );
-
-      // Credit account: increase balance
-      await Accounts.update(
-        { 
-          availableBalance: sequelize.literal(`availableBalance + ${amount}`),
-          modifiedOn: new Date(),
-          modifiedBy: username
-        },
-        { 
-          where: { accountId: data.creditAccountId },
-          transaction: dbTransaction
-        }
-      );
-    }
-    
-    await dbTransaction.commit();
-    console.log("TEST: Transaction committed successfully");
-    
-    // Fetch both entries with all associations
-    const transactionEntries = await Transactions.findAll({
-      where: { referenceNumber },
-      include: [
-        { model: Sacco, as: 'sacco' },
-        { 
-          model: Accounts, 
-          as: 'memberAccount',
-          include: [
-            { model: Members, as: 'member' },
-            { model: Products, as: 'product' }
-          ],
-          required: false
-        },
-        { 
-          model: GLAccounts, 
-          as: 'glAccount',
-          include: [
-            { model: Sacco, as: 'sacco' }
-          ],
-          required: false
-        }
-      ],
-      order: [['entryType', 'ASC']]
-    });
-    
-    respond(res, 201, "Transaction created with double-entry (TEST MODE)", transactionEntries);
-  } catch (err) {
-    await dbTransaction.rollback();
-    console.error("TEST: Error creating transaction:", err);
     respond(res, 500, `Server error: ${err.message}`, null);
   }
 });
@@ -779,11 +718,9 @@ router.put("/reference/:referenceNumber/approve", validateToken, logUpdateOperat
 
     const debitAccount = debitMemberAccount || debitGLAccount;
     const creditAccount = creditMemberAccount || creditGLAccount;
-    const debitAccountType = debitMemberAccount ? 'MEMBER' : 'GL';
-    const creditAccountType = creditMemberAccount ? 'MEMBER' : 'GL';
     
     // Check if debit account has sufficient balance (for GL accounts)
-    if (debitAccountType === 'GL' && debitAccount.availableBalance < parseFloat(debitEntry.amount)) {
+    if (debitGLAccount && debitAccount.availableBalance < parseFloat(debitEntry.amount)) {
       await dbTransaction.rollback();
       return respond(res, 400, "Insufficient balance in debit account", null);
     }
@@ -807,21 +744,29 @@ router.put("/reference/:referenceNumber/approve", validateToken, logUpdateOperat
     const amount = parseFloat(debitEntry.amount);
     
     // Update debit account balance (move from pending debit to clear balance decrease)
-    if (debitAccountType === 'MEMBER') {
-      await Accounts.update(
-        { 
-          debitBalance: sequelize.literal(`debitBalance - ${amount}`),
-          clearBalance: sequelize.literal(`clearBalance - ${amount}`),
-          availableBalance: sequelize.literal(`availableBalance - ${amount}`),
-          modifiedOn: new Date(),
-          modifiedBy: username
-        },
-        { 
-          where: { accountId: debitEntry.accountId },
+    if (debitMemberAccount) {
+      // For member accounts: Update all fields in ONE query to avoid double-updates
+      // Formula: availableBalance = clearBalance + unsupervisedCredits - unsupervisedDebits - frozenAmount - pendingCharges
+      await sequelize.query(
+        `UPDATE accounts 
+         SET unsupervisedDebits = unsupervisedDebits - :amount,
+             clearBalance = clearBalance - :amount,
+             availableBalance = (clearBalance - :amount) + unsupervisedCredits - (unsupervisedDebits - :amount) - frozenAmount - pendingCharges,
+             modifiedOn = :modifiedOn,
+             modifiedBy = :modifiedBy
+         WHERE accountId = :accountId`,
+        {
+          replacements: {
+            amount: amount,
+            accountId: debitEntry.accountId,
+            modifiedOn: new Date(),
+            modifiedBy: username
+          },
           transaction: dbTransaction
         }
       );
-    } else {
+    } else if (debitGLAccount) {
+      // For GL accounts: just update availableBalance directly
       await GLAccounts.update(
         { 
           availableBalance: sequelize.literal(`availableBalance - ${amount}`),
@@ -836,21 +781,29 @@ router.put("/reference/:referenceNumber/approve", validateToken, logUpdateOperat
     }
 
     // Update credit account balance (move from pending credit to clear balance increase)
-    if (creditAccountType === 'MEMBER') {
-      await Accounts.update(
-        { 
-          creditBalance: sequelize.literal(`creditBalance - ${amount}`),
-          clearBalance: sequelize.literal(`clearBalance + ${amount}`),
-          availableBalance: sequelize.literal(`availableBalance + ${amount}`),
-          modifiedOn: new Date(),
-          modifiedBy: username
-        },
-        { 
-          where: { accountId: creditEntry.accountId },
+    if (creditMemberAccount) {
+      // For member accounts: Update all fields in ONE query to avoid double-updates
+      // Formula: availableBalance = clearBalance + unsupervisedCredits - unsupervisedDebits - frozenAmount - pendingCharges
+      await sequelize.query(
+        `UPDATE accounts 
+         SET unsupervisedCredits = unsupervisedCredits - :amount,
+             clearBalance = clearBalance + :amount,
+             availableBalance = (clearBalance + :amount) + (unsupervisedCredits - :amount) - unsupervisedDebits - frozenAmount - pendingCharges,
+             modifiedOn = :modifiedOn,
+             modifiedBy = :modifiedBy
+         WHERE accountId = :accountId`,
+        {
+          replacements: {
+            amount: amount,
+            accountId: creditEntry.accountId,
+            modifiedOn: new Date(),
+            modifiedBy: username
+          },
           transaction: dbTransaction
         }
       );
-    } else {
+    } else if (creditGLAccount) {
+      // For GL accounts: just update availableBalance directly
       await GLAccounts.update(
         { 
           availableBalance: sequelize.literal(`availableBalance + ${amount}`),
@@ -1150,21 +1103,21 @@ router.post("/cash", validateToken, logCreateOperation("Cash Transaction"), asyn
     console.log("Creating cash transaction entries...");
     
     // Determine debit and credit accounts based on transaction type
-    let debitAccountId, creditAccountId, debitAccountType, creditAccountType;
+    let debitAccountId, creditAccountId;
     
     if (data.transactionType === 'debit') {
       // Member withdrawal: Debit member account, Credit till
       debitAccountId = data.memberAccountId;
       creditAccountId = data.tillGlAccountId;
-      debitAccountType = 'MEMBER';
-      creditAccountType = 'GL';
     } else {
       // Member deposit: Debit till, Credit member account
       debitAccountId = data.tillGlAccountId;
       creditAccountId = data.memberAccountId;
-      debitAccountType = 'GL';
-      creditAccountType = 'MEMBER';
     }
+    
+    // Determine if transaction is being approved on creation
+    const status = data.status || "Pending";
+    const isApproved = status === "Approved";
     
     // Create debit entry
     const debitEntry = await Transactions.create({
@@ -1172,14 +1125,15 @@ router.post("/cash", validateToken, logCreateOperation("Cash Transaction"), asyn
       referenceNumber,
       saccoId: data.saccoId,
       accountId: debitAccountId,
-      accountType: debitAccountType,
       entryType: 'DEBIT',
       amount: amount,
       type: data.transactionType === 'debit' ? 'WITHDRAWAL' : 'DEPOSIT',
-      status: data.status || "Pending",
+      status: status,
       remarks: data.remarks || null,
       createdOn: new Date(),
       createdBy: username,
+      approvedBy: isApproved ? username : null,
+      approvedOn: isApproved ? new Date() : null,
     }, { transaction: dbTransaction });
 
     // Create credit entry
@@ -1188,14 +1142,15 @@ router.post("/cash", validateToken, logCreateOperation("Cash Transaction"), asyn
       referenceNumber,
       saccoId: data.saccoId,
       accountId: creditAccountId,
-      accountType: creditAccountType,
       entryType: 'CREDIT',
       amount: amount,
       type: data.transactionType === 'debit' ? 'WITHDRAWAL' : 'DEPOSIT',
-      status: data.status || "Pending",
+      status: status,
       remarks: data.remarks || null,
       createdOn: new Date(),
       createdBy: username,
+      approvedBy: isApproved ? username : null,
+      approvedOn: isApproved ? new Date() : null,
     }, { transaction: dbTransaction });
 
     console.log("Cash transaction entries created successfully");
@@ -1205,20 +1160,27 @@ router.post("/cash", validateToken, logCreateOperation("Cash Transaction"), asyn
       console.log("Updating account balances for approved cash transaction...");
       
       // Update debit account balance
-      if (debitAccountType === 'MEMBER') {
-        await Accounts.update(
+      if (data.transactionType === 'debit') {
+        // Member withdrawal: debit is member account
+        await sequelize.query(
+          `UPDATE accounts 
+           SET clearBalance = clearBalance - :amount,
+               availableBalance = (clearBalance - :amount) + unsupervisedCredits - unsupervisedDebits - frozenAmount - pendingCharges,
+               modifiedOn = :modifiedOn,
+               modifiedBy = :modifiedBy
+           WHERE accountId = :accountId`,
           { 
-            clearBalance: sequelize.literal(`clearBalance - ${amount}`),
-            availableBalance: sequelize.literal(`availableBalance - ${amount}`),
-            modifiedOn: new Date(),
-            modifiedBy: username
-          },
-          { 
-            where: { accountId: debitAccountId },
+            replacements: { 
+              amount: amount,
+              accountId: debitAccountId,
+              modifiedOn: new Date(),
+              modifiedBy: username
+            },
             transaction: dbTransaction
           }
         );
       } else {
+        // Member deposit: debit is till GL account
         await GLAccounts.update(
           { 
             availableBalance: sequelize.literal(`availableBalance - ${amount}`),
@@ -1233,20 +1195,8 @@ router.post("/cash", validateToken, logCreateOperation("Cash Transaction"), asyn
       }
 
       // Update credit account balance
-      if (creditAccountType === 'MEMBER') {
-        await Accounts.update(
-          { 
-            clearBalance: sequelize.literal(`clearBalance + ${amount}`),
-            availableBalance: sequelize.literal(`availableBalance + ${amount}`),
-            modifiedOn: new Date(),
-            modifiedBy: username
-          },
-          { 
-            where: { accountId: creditAccountId },
-            transaction: dbTransaction
-          }
-        );
-      } else {
+      if (data.transactionType === 'debit') {
+        // Member withdrawal: credit is till GL account
         await GLAccounts.update(
           { 
             availableBalance: sequelize.literal(`availableBalance + ${amount}`),
@@ -1258,34 +1208,71 @@ router.post("/cash", validateToken, logCreateOperation("Cash Transaction"), asyn
             transaction: dbTransaction
           }
         );
+      } else {
+        // Member deposit: credit is member account
+        await sequelize.query(
+          `UPDATE accounts 
+           SET clearBalance = clearBalance + :amount,
+               availableBalance = (clearBalance + :amount) + unsupervisedCredits - unsupervisedDebits - frozenAmount - pendingCharges,
+               modifiedOn = :modifiedOn,
+               modifiedBy = :modifiedBy
+           WHERE accountId = :accountId`,
+          { 
+            replacements: { 
+              amount: amount,
+              accountId: creditAccountId,
+              modifiedOn: new Date(),
+              modifiedBy: username
+            },
+            transaction: dbTransaction
+          }
+        );
       }
     } else {
       console.log("Updating pending balances for cash transaction with status:", data.status);
       
       // Update pending balances for pending transactions
-      if (debitAccountType === 'MEMBER') {
-        await Accounts.update(
+      // BOTH debit and credit sides need to be updated with unsupervised fields
+      
+      if (data.transactionType === 'debit') {
+        // Member withdrawal: debit is member account, credit is till
+        // Update member account unsupervised debits in ONE query
+        await sequelize.query(
+          `UPDATE accounts 
+           SET unsupervisedDebits = unsupervisedDebits + :amount,
+               availableBalance = clearBalance + unsupervisedCredits - (unsupervisedDebits + :amount) - frozenAmount - pendingCharges,
+               modifiedOn = :modifiedOn,
+               modifiedBy = :modifiedBy
+           WHERE accountId = :accountId`,
           { 
-            debitBalance: sequelize.literal(`debitBalance + ${amount}`),
-            modifiedOn: new Date(),
-            modifiedBy: username
-          },
-          { 
-            where: { accountId: debitAccountId },
+            replacements: { 
+              amount: amount,
+              accountId: debitAccountId,
+              modifiedOn: new Date(),
+              modifiedBy: username
+            },
             transaction: dbTransaction
           }
         );
       }
 
-      if (creditAccountType === 'MEMBER') {
-        await Accounts.update(
+      if (data.transactionType === 'credit') {
+        // Member deposit: credit is member account, debit is till
+        // Update member account unsupervised credits in ONE query
+        await sequelize.query(
+          `UPDATE accounts 
+           SET unsupervisedCredits = unsupervisedCredits + :amount,
+               availableBalance = clearBalance + (unsupervisedCredits + :amount) - unsupervisedDebits - frozenAmount - pendingCharges,
+               modifiedOn = :modifiedOn,
+               modifiedBy = :modifiedBy
+           WHERE accountId = :accountId`,
           { 
-            creditBalance: sequelize.literal(`creditBalance + ${amount}`),
-            modifiedOn: new Date(),
-            modifiedBy: username
-          },
-          { 
-            where: { accountId: creditAccountId },
+            replacements: { 
+              amount: amount,
+              accountId: creditAccountId,
+              modifiedOn: new Date(),
+              modifiedBy: username
+            },
             transaction: dbTransaction
           }
         );

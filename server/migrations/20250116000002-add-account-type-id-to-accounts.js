@@ -1,29 +1,27 @@
 'use strict';
 
 module.exports = {
-    up: async (queryInterface, Sequelize) => {
+  up: async (queryInterface, Sequelize) => {
     // Check if columns already exist before adding them
     const tableDescription = await queryInterface.describeTable('Accounts');
     
     if (!tableDescription.accountTypeId) {
       await queryInterface.addColumn('Accounts', 'accountTypeId', {
-      type: Sequelize.INTEGER,
-      allowNull: true,
-      references: {
-        model: 'AccountTypes',
-        key: 'id'
+        type: Sequelize.INTEGER,
+        allowNull: true,
+        references: {
+          model: 'AccountTypes',
+          key: 'id'
+        },
+        onUpdate: 'CASCADE',
+        onDelete: 'SET NULL'
       });
     } else {
       console.log('Column accountTypeId already exists in Accounts table - skipping');
     }
-    
-  },
-      onUpdate: 'CASCADE',
-      onDelete: 'SET NULL'
-    });
   },
 
-    down: async (queryInterface, Sequelize) => {
+  down: async (queryInterface, Sequelize) => {
     // Check if columns exist before removing them
     const tableDescription = await queryInterface.describeTable('Accounts');
     
@@ -32,7 +30,6 @@ module.exports = {
     } else {
       console.log('Column accountTypeId does not exist in Accounts table - skipping');
     }
-    
   }
 };
 

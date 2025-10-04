@@ -405,14 +405,4 @@ router.get("/available-users", validateToken, async (req, res) => {
   }
 });
 
-// Simple test endpoint (unprotected)
-router.get("/test", (req, res) => {
-  res.json({ message: "Account Officers API is working", timestamp: new Date() });
-});
-
-// Simple test endpoint with auth
-router.get("/test-auth", validateToken, (req, res) => {
-  res.json({ message: "Account Officers API with auth is working", user: req.user, timestamp: new Date() });
-});
-
 module.exports = router;

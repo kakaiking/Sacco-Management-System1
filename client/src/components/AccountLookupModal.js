@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { FiX, FiCheck, FiSearch } from 'react-icons/fi';
 import axios from 'axios';
 
-function AccountLookupModal({ isOpen, onClose, onSelectAccount, memberId }) {
+function AccountLookupModal({ isOpen, onClose, onSelectAccount, memberId, includeGLAccounts = true }) {
   const [accounts, setAccounts] = useState([]);
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -18,33 +18,52 @@ function AccountLookupModal({ isOpen, onClose, onSelectAccount, memberId }) {
       if (memberId) {
         // If memberId is provided, fetch only accounts for that specific member
         // For loan applications, we don't want GL accounts as repayment options
-        const memberAccountsResponse = await axios.get(
-          searchTerm 
-            ? `http://localhost:3001/accounts/member/${memberId}?q=${encodeURIComponent(searchTerm)}`
-            : `http://localhost:3001/accounts/member/${memberId}`, {
-          headers: { accessToken: localStorage.getItem('accessToken') }
-        });
-        memberAccounts = memberAccountsResponse.data.entity || [];
+        try {
+          const memberAccountsResponse = await axios.get(
+            searchTerm 
+              ? `http://localhost:3001/accounts/member/${memberId}?q=${encodeURIComponent(searchTerm)}`
+              : `http://localhost:3001/accounts/member/${memberId}`, {
+            headers: { accessToken: localStorage.getItem('accessToken') }
+          });
+          memberAccounts = memberAccountsResponse.data.entity || [];
+        } catch (error) {
+          console.error('Error fetching member accounts:', error);
+          memberAccounts = [];
+        }
         
         // Don't fetch GL accounts when memberId is provided (for loan applications)
         glAccounts = [];
       } else {
         // If no memberId, fetch all accounts (original behavior)
-        const [memberAccountsResponse, glAccountsResponse] = await Promise.all([
-          axios.get(searchTerm 
-            ? `http://localhost:3001/accounts?q=${encodeURIComponent(searchTerm)}`
-            : 'http://localhost:3001/accounts', {
-            headers: { accessToken: localStorage.getItem('accessToken') }
-          }),
-          axios.get(searchTerm 
+        // Fetch member accounts
+        const memberAccountsPromise = axios.get(searchTerm 
+          ? `http://localhost:3001/accounts?q=${encodeURIComponent(searchTerm)}`
+          : 'http://localhost:3001/accounts', {
+          headers: { accessToken: localStorage.getItem('accessToken') }
+        }).catch(error => {
+          console.error('Error fetching member accounts:', error);
+          return { data: { entity: [] } };
+        });
+
+        // Only fetch GL accounts if includeGLAccounts is true
+        const promises = [memberAccountsPromise];
+        
+        if (includeGLAccounts) {
+          const glAccountsPromise = axios.get(searchTerm 
             ? `http://localhost:3001/gl-accounts?q=${encodeURIComponent(searchTerm)}`
             : 'http://localhost:3001/gl-accounts', {
             headers: { accessToken: localStorage.getItem('accessToken') }
-          })
-        ]);
+          }).catch(error => {
+            console.error('Error fetching GL accounts:', error);
+            return { data: { entity: [] } };
+          });
+          promises.push(glAccountsPromise);
+        }
+
+        const responses = await Promise.all(promises);
         
-        memberAccounts = memberAccountsResponse.data.entity || [];
-        glAccounts = glAccountsResponse.data.entity || [];
+        memberAccounts = responses[0].data.entity || [];
+        glAccounts = includeGLAccounts && responses[1] ? (responses[1].data.entity || []) : [];
       }
       
       // Transform GL accounts to match the expected format
@@ -73,7 +92,7 @@ function AccountLookupModal({ isOpen, onClose, onSelectAccount, memberId }) {
     } finally {
       setLoading(false);
     }
-  }, [searchTerm, memberId]);
+  }, [searchTerm, memberId, includeGLAccounts]);
 
   // Fetch accounts when modal opens
   useEffect(() => {
@@ -144,7 +163,7 @@ function AccountLookupModal({ isOpen, onClose, onSelectAccount, memberId }) {
             fontSize: '20px',
             fontWeight: '600'
           }}>
-            {memberId ? 'Select Member Account for Repayment' : 'Select Account (Member & GL Accounts)'}
+            {memberId ? 'Select Member Account for Repayment' : (includeGLAccounts ? 'Select Account (Member & GL Accounts)' : 'Select Account')}
           </h2>
           <button
             onClick={onClose}
@@ -267,7 +286,7 @@ function AccountLookupModal({ isOpen, onClose, onSelectAccount, memberId }) {
                         color: 'var(--text-primary)',
                         marginBottom: '4px'
                       }}>
-                        {account.accountName}
+                        {account.shortName || account.accountName || 'Unnamed Account'}
                       </div>
                       
                       {account.accountType === 'GL_ACCOUNT' ? (

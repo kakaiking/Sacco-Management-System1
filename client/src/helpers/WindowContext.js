@@ -132,6 +132,17 @@ export const WindowProvider = ({ children }) => {
     return windows.find(w => w.type === windowType);
   }, [windows]);
 
+  // Update window title
+  const updateWindowTitle = useCallback((windowId, newTitle, newTabTitle = null) => {
+    setWindows(prev => prev.map(w => 
+      w.id === windowId ? { 
+        ...w, 
+        title: newTitle,
+        ...(newTabTitle !== null && { tabTitle: newTabTitle })
+      } : w
+    ));
+  }, []);
+
   const value = {
     windows,
     activeWindowId,
@@ -143,7 +154,8 @@ export const WindowProvider = ({ children }) => {
     getActiveWindow,
     getMinimizedWindows,
     isWindowOpen,
-    getWindowByType
+    getWindowByType,
+    updateWindowTitle
   };
 
   return (

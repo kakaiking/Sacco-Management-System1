@@ -56,8 +56,6 @@ const formatAmountDisplay = (value) => {
   return numericValue < 0 ? `(${formatted})` : formatted;
 };
 
-// Removed sampleStatementRows - now fetched from backend
-
 const parseSignatoriesArray = (value) => {
   if (!value) return [];
   if (Array.isArray(value)) return value;
@@ -71,7 +69,7 @@ const parseSignatoriesArray = (value) => {
   }
 };
 
-function SavingsAccountsForm({ id: propId, isWindowMode = false }) {
+function LoansAccountsForm({ id: propId, isWindowMode = false }) {
   const history = useHistory();
   const { authState, isLoading } = useContext(AuthContext);
   const { id: paramId } = useParams();
@@ -135,6 +133,7 @@ function SavingsAccountsForm({ id: propId, isWindowMode = false }) {
     const { to } = getCurrentMonthRange();
     return formatDateInput(to);
   });
+
   
   // Statement data state
   const [statementTransactions, setStatementTransactions] = useState([]);
@@ -168,7 +167,7 @@ function SavingsAccountsForm({ id: propId, isWindowMode = false }) {
     
     // Overview Account Details
     shortName: "",
-    accountType: "savings", // Always set to savings
+    accountType: "Loan", // Always set to Loan
     currencyId: "",
     address: "",
     city: "",
@@ -240,12 +239,12 @@ function SavingsAccountsForm({ id: propId, isWindowMode = false }) {
             if (branch) {
               // Update window title with branch name if in window mode
               if (isWindowMode && branch.branchName) {
-                const savingsWindow = getWindowByType('savings-accounts');
-                if (savingsWindow) {
+                const loansWindow = getWindowByType('loans-accounts');
+                if (loansWindow) {
                   updateWindowTitle(
-                    savingsWindow.id, 
-                    `Savings Accounts (${branch.branchName})`, // Full title for window header
-                    'Savings Accounts' // Short title for tabs
+                    loansWindow.id, 
+                    `Loans Accounts (${branch.branchName})`, // Full title for window header
+                    'Loans Accounts' // Short title for tabs
                   );
                 }
               }
@@ -296,10 +295,6 @@ function SavingsAccountsForm({ id: propId, isWindowMode = false }) {
 
   // Handle account selection from lookup
   const handleAccountSelect = (account) => {
-    console.log('=== ACCOUNT SELECTED FROM LOOKUP ===');
-    console.log('Account ID:', account.accountId);
-    console.log('Account data:', account);
-    
     setSelectedAccount(account);
     setForm(prev => ({
       ...prev,
@@ -343,8 +338,6 @@ function SavingsAccountsForm({ id: propId, isWindowMode = false }) {
       approvedBy: account.approvedBy || "",
       approvedOn: account.approvedOn || ""
     }));
-    
-    console.log('Statements tab should now be enabled. Click on it to load transactions.');
     
     // Set related lookup data
     if (account.member) {
@@ -444,7 +437,7 @@ function SavingsAccountsForm({ id: propId, isWindowMode = false }) {
         });
         showMessage('Account created successfully', 'success');
         if (!isWindowMode) {
-          history.push(`/savings-accounts/${response.data.entity.id}`);
+          history.push(`/loans-accounts/${response.data.entity.id}`);
         }
       } else if (formMode === 'edit') {
         // Use the database ID from form state
@@ -479,7 +472,7 @@ function SavingsAccountsForm({ id: propId, isWindowMode = false }) {
       showMessage('Account deleted successfully', 'success');
       setShowDeleteModal(false);
       if (!isWindowMode) {
-        history.push('/savings-accounts');
+        history.push('/loans-accounts');
       }
     } catch (error) {
       console.error('Error deleting account:', error);
@@ -530,7 +523,7 @@ function SavingsAccountsForm({ id: propId, isWindowMode = false }) {
       
       // Overview Account Details
       shortName: "",
-      accountType: "savings",
+      accountType: "Loan",
       currencyId: "",
       address: "",
       city: authState?.branchLocation || "",
@@ -648,18 +641,10 @@ function SavingsAccountsForm({ id: propId, isWindowMode = false }) {
     setAccountSignatories((prev) => prev.filter((_, i) => i !== index));
   };
 
-  // Switch back to Account Info tab if account is cleared while viewing statements
-  useEffect(() => {
-    if (!form.accountId && activeTab === 'statements') {
-      setActiveTab('accountInfo');
-    }
-  }, [form.accountId, activeTab]);
-
   // Fetch account statements when viewing an account
   useEffect(() => {
     const fetchStatements = async () => {
-      // Only fetch if we have an accountId (regardless of whether we're in create mode with lookup)
-      if (!form.accountId) {
+      if (!form.accountId || id === 'new') {
         setStatementTransactions([]);
         return;
       }
@@ -670,12 +655,6 @@ function SavingsAccountsForm({ id: propId, isWindowMode = false }) {
 
       setIsLoadingStatements(true);
       try {
-        console.log('=== FETCHING STATEMENTS ===');
-        console.log('Account ID:', form.accountId);
-        console.log('From Date:', statementFrom);
-        console.log('To Date:', statementTo);
-        console.log('Status Filter:', 'Approved');
-        
         const response = await axios.get(`http://localhost:3001/transactions/account/${form.accountId}`, {
           params: {
             fromDate: statementFrom,
@@ -685,17 +664,14 @@ function SavingsAccountsForm({ id: propId, isWindowMode = false }) {
           headers: { accessToken: localStorage.getItem('accessToken') }
         });
         
-        console.log('Response received:', response.data);
-        console.log('Number of transactions:', response.data.entity?.length || 0);
-        
         const transactions = response.data.entity || [];
         
         // Calculate running balance for each transaction
-        let runningBalance = form.clearBalance || 0;
+        let runningBalance = form.totalBalance || 0;
         
         // Get opening balance (balance before the date range)
-        // This would be the clearBalance minus all transactions in the range
-        const openingBal = form.clearBalance || 0;
+        // This would be the totalBalance minus all transactions in the range
+        const openingBal = form.totalBalance || 0;
         runningBalance = openingBal;
         
         const transactionsWithBalance = transactions.map((txn) => {
@@ -737,7 +713,7 @@ function SavingsAccountsForm({ id: propId, isWindowMode = false }) {
     };
 
     fetchStatements();
-  }, [form.accountId, form.clearBalance, statementFrom, statementTo, activeTab, id, showMessage]);
+  }, [form.accountId, form.totalBalance, statementFrom, statementTo, activeTab, id, showMessage]);
 
   // Build statement row data with opening and closing as regular rows
   const statementRowData = [
@@ -819,17 +795,16 @@ function SavingsAccountsForm({ id: propId, isWindowMode = false }) {
     `;
 
     statementRowData.forEach(row => {
-      const isNegativeDebit = Number(row.debit) < 0;
       const isSpecialRow = row.isSpecialRow;
+      const isNegativeDebit = Number(row.debit) < 0;
       const rowClass = isSpecialRow ? 'marker-row' : '';
-      
       printContent += `
         <tr class="${rowClass}">
           <td>${row.date ? new Date(row.date).toLocaleDateString('en-GB') : ''}</td>
-          <td style="${isSpecialRow ? 'text-transform: uppercase; font-weight: bold;' : ''}">${row.particulars || ''}</td>
-          <td class="text-right ${isNegativeDebit ? 'negative' : ''}">${row.debit > 0 ? formatAmountDisplay(row.debit) : ''}</td>
+          <td>${row.particulars || ''}</td>
+          <td class="text-right ${isNegativeDebit && !isSpecialRow ? 'negative' : ''}">${row.debit > 0 ? formatAmountDisplay(row.debit) : ''}</td>
           <td class="text-right">${row.credit > 0 ? formatAmountDisplay(row.credit) : ''}</td>
-          <td class="text-right" style="${isSpecialRow ? 'font-weight: bold;' : ''}">${formatAmountDisplay(row.closing)}</td>
+          <td class="text-right">${formatAmountDisplay(row.closing)}</td>
           <td>${row.operatorId || ''}</td>
           <td>${row.supervisorId || ''}</td>
           <td>${row.refNo || ''}</td>
@@ -930,9 +905,7 @@ function SavingsAccountsForm({ id: propId, isWindowMode = false }) {
         from: statementFrom,
         to: statementTo
       },
-      openingBalance: openingBalance,
-      closingBalance: closingBalance,
-      statements: statementRowData.filter(row => !row.isSpecialRow).map(row => ({
+      statements: statementRowData.map(row => ({
         date: row.date,
         particulars: row.particulars,
         debit: row.debit,
@@ -1288,42 +1261,26 @@ function SavingsAccountsForm({ id: propId, isWindowMode = false }) {
           margin: "16px 0 12px"
         }}
       >
-        {tabItems.map((tab) => {
-          // Disable statements tab in create mode or if no account is selected
-          const isDisabled = tab.key === "statements" && (formMode === 'create' || !form.accountId);
-          
-          return (
-            <div
-              key={tab.key}
-              onClick={() => {
-                if (!isDisabled) {
-                  console.log(`Switching to tab: ${tab.key}`);
-                  console.log('Form mode:', formMode);
-                  console.log('Account ID:', form.accountId);
-                  setActiveTab(tab.key);
-                } else {
-                  console.log(`Tab ${tab.key} is disabled. Reason:`, formMode === 'create' ? 'Create mode' : 'No account selected');
-                }
-              }}
-              style={{
-                padding: "12px 24px",
-                color: isDisabled ? "#ccc" : (activeTab === tab.key ? "#007bff" : "#666"),
-                cursor: isDisabled ? "not-allowed" : "pointer",
-                fontWeight: activeTab === tab.key ? "600" : "400",
-                background: activeTab === tab.key ? "#fff" : "transparent",
-                border: "1px solid transparent",
-                borderRadius: "6px",
-                fontSize: "14px",
-                transition: "all 0.2s ease",
-                margin: "0 2px",
-                opacity: isDisabled ? 0.5 : 1
-              }}
-              title={isDisabled ? "Please select an account to view statements" : ""}
-            >
-              {tab.label}
-            </div>
-          );
-        })}
+        {tabItems.map((tab) => (
+          <div
+            key={tab.key}
+            onClick={() => setActiveTab(tab.key)}
+            style={{
+              padding: "12px 24px",
+              color: activeTab === tab.key ? "#007bff" : "#666",
+              cursor: "pointer",
+              fontWeight: activeTab === tab.key ? "600" : "400",
+              background: activeTab === tab.key ? "#fff" : "transparent",
+              border: "1px solid transparent",
+              borderRadius: "6px",
+              fontSize: "14px",
+              transition: "all 0.2s ease",
+              margin: "0 2px"
+            }}
+          >
+            {tab.label}
+          </div>
+        ))}
       </div>
 
       {/* Form Content */}
@@ -1360,6 +1317,21 @@ function SavingsAccountsForm({ id: propId, isWindowMode = false }) {
                 placeholder="Enter address"
                 rows="1"
                 style={{ minHeight: "32px" }}
+              />
+            </div>
+
+            <div>
+              <label style={{ color: "var(--primary-700)", fontWeight: "600" }}>
+                <span style={{ whiteSpace: 'nowrap' }}>
+                  <span style={{ fontWeight: "bold", color: "var(--primary-700)" }}>City (Branch City)</span>{isFieldRequired('city') && <span style={{ color: '#ef4444' }}>*</span>}
+                </span>
+              </label>
+              <input
+                className="input"
+                value={form.city}
+                onChange={(e) => handleInputChange('city', e.target.value)}
+                disabled={formMode === 'view'}
+                placeholder="Branch city"
               />
             </div>
 
@@ -2060,13 +2032,13 @@ function SavingsAccountsForm({ id: propId, isWindowMode = false }) {
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
-            padding: "10px 14px",
+            padding: "12px 16px",
             backgroundColor: "#f8f9fa",
             border: "1px solid #e0e0e0",
             borderRadius: "8px",
             cursor: "pointer",
-            marginTop: "16px",
-            marginBottom: showAuditFields ? "12px" : "0",
+            marginTop: "24px",
+            marginBottom: showAuditFields ? "16px" : "0",
             transition: "all 0.3s ease"
           }}
           onClick={() => setShowAuditFields(!showAuditFields)}
@@ -2095,68 +2067,68 @@ function SavingsAccountsForm({ id: propId, isWindowMode = false }) {
         </div>
 
         {/* Collapsible Audit Fields Content */}
-          {showAuditFields && (
-            <div style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(3, 1fr)",
-              gap: "10px",
-              marginTop: "12px",
-              padding: "12px",
-              backgroundColor: "#fafafa",
-              border: "1px solid #e0e0e0",
-              borderRadius: "8px",
-              animation: "fadeIn 0.3s ease"
-            }}>
-              <label>
-                Created On
-                <input className="inputf"
-                  value={form.createdOn ? new Date(form.createdOn).toLocaleDateString() : ""}
-                  disabled={true}
-                />
-              </label>
+        {showAuditFields && (
+          <div style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(3, 1fr)",
+            gap: "12px",
+            marginTop: "16px",
+            padding: "16px",
+            backgroundColor: "#fafafa",
+            border: "1px solid #e0e0e0",
+            borderRadius: "8px",
+            animation: "fadeIn 0.3s ease"
+          }}>
+            <label>
+              Created On
+              <input className="inputf"
+                value={form.createdOn ? new Date(form.createdOn).toLocaleDateString() : ""}
+                disabled={true}
+              />
+            </label>
 
-              <label>
-                Modified On
-                <input className="inputf"
-                  value={form.modifiedOn ? new Date(form.modifiedOn).toLocaleDateString() : ""}
-                  disabled={true}
-                />
-              </label>
+            <label>
+              Modified On
+              <input className="inputf"
+                value={form.modifiedOn ? new Date(form.modifiedOn).toLocaleDateString() : ""}
+                disabled={true}
+              />
+            </label>
 
-              <label>
-                Approved On
-                <input className="inputf"
-                  value={form.approvedOn ? new Date(form.approvedOn).toLocaleDateString() : ""}
-                  disabled={true}
-                />
-              </label>
+            <label>
+              Approved On
+              <input className="inputf"
+                value={form.approvedOn ? new Date(form.approvedOn).toLocaleDateString() : ""}
+                disabled={true}
+              />
+            </label>
 
-              <label>
-                Created By
-                <input className="inputf"
-                  value={form.createdBy || ""}
-                  disabled={true}
-                />
-              </label>
-              
-              <label>
-                Modified By
-                <input className="inputf"
-                  value={form.modifiedBy || ""}
-                  disabled={true}
-                />
-              </label>
-              
-              <label>
-                Approved By
-                <input className="inputf"
-                  value={form.approvedBy || ""}
-                  disabled={true}
-                />
-              </label>
-            </div>
-          )}
-        </form>
+            <label>
+              Created By
+              <input className="inputf"
+                value={form.createdBy || ""}
+                disabled={true}
+              />
+            </label>
+            
+            <label>
+              Modified By
+              <input className="inputf"
+                value={form.modifiedBy || ""}
+                disabled={true}
+              />
+            </label>
+            
+            <label>
+              Approved By
+              <input className="inputf"
+                value={form.approvedBy || ""}
+                disabled={true}
+              />
+            </label>
+          </div>
+        )}
+      </form>
       )}
 
       {activeTab === "statements" && (
@@ -2498,7 +2470,6 @@ function SavingsAccountsForm({ id: propId, isWindowMode = false }) {
           isOpen={showAccountLookup}
           onClose={() => setShowAccountLookup(false)}
           onSelectAccount={handleAccountSelect}
-          includeGLAccounts={false}
         />
       )}
 
@@ -2552,7 +2523,7 @@ function SavingsAccountsForm({ id: propId, isWindowMode = false }) {
               Confirm Delete
             </h3>
             <p style={{ margin: "0 0 24px 0", color: "var(--text-secondary)" }}>
-              Are you sure you want to delete this savings account? This action cannot be undone.
+              Are you sure you want to delete this loan account? This action cannot be undone.
             </p>
             <div style={{ display: "flex", gap: "12px", justifyContent: "flex-end" }}>
               <button
@@ -2599,4 +2570,4 @@ function SavingsAccountsForm({ id: propId, isWindowMode = false }) {
   );
 }
 
-export default SavingsAccountsForm;
+export default LoansAccountsForm;

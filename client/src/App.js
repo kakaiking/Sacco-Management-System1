@@ -1,5 +1,6 @@
 import "./App.css";
-import { BrowserRouter as Router, Route, Switch } from "react-router-dom";
+import { BrowserRouter as Router, Route, Switch, useLocation } from "react-router-dom";
+import { createPortal } from "react-dom";
 import axios from "axios";
 import Sidebar from "./components/Sidebar";
 import Home from "./pages/Home";
@@ -73,6 +74,8 @@ import PayoutsManagement from "./pages/PayoutsManagement";
 import PayoutsForm from "./pages/PayoutsForm";
 import IdMaintenance from "./pages/IdMaintenance";
 import IdForm from "./pages/IdForm";
+import LoansAccountsForm from "./pages/LoansAccountsForm";
+import SavingsProductsForm from "./pages/SavingsProductsForm";
 
 import { AuthContext } from "./helpers/AuthContext";
 import { SidebarProvider } from "./helpers/SidebarContext";
@@ -131,9 +134,13 @@ function App() {
     }
   }, []);
 
-  // Memoized organization display component
-  const organizationDisplay = useMemo(() => {
-    if (!authState.status) return null;
+  // Component to conditionally render organization info based on auth and route
+  const OrganizationDisplay = () => {
+    const location = useLocation();
+    const isLoginPage = location.pathname === '/login';
+    
+    // Don't show organization info if not authenticated or on login page
+    if (!authState.status || isLoginPage) return null;
     
     return (
       <div className="organization-info">
@@ -157,7 +164,38 @@ function App() {
         </div>
       </div>
     );
-  }, [authState.status, organizationInfo]);
+  };
+
+  // Set zoom level to 100% on app initialization
+  useEffect(() => {
+    const setZoomLevel = () => {
+      // Set CSS zoom as primary method
+      document.body.style.zoom = '1.0';
+      
+      // Fallback for browsers that don't support CSS zoom
+      // Use transform scale as alternative
+      if (!document.body.style.zoom) {
+        document.body.style.transform = 'scale(1.0)';
+        document.body.style.transformOrigin = 'top left';
+        document.body.style.width = '100%'; // Compensate for scale (100/1.0)
+        document.body.style.height = '100%';
+      }
+    };
+
+    // Set zoom immediately
+    setZoomLevel();
+
+    // Re-apply zoom on window resize to maintain consistency
+    const handleResize = () => {
+      setZoomLevel();
+    };
+
+    window.addEventListener('resize', handleResize);
+    
+    return () => {
+      window.removeEventListener('resize', handleResize);
+    };
+  }, []);
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -284,7 +322,14 @@ function App() {
 
 
   const logout = async () => {
+    // Prevent multiple logout attempts
+    if (isLoggingOut) return;
+    
     try {
+      setIsLoggingOut(true);
+      // Close the dropdown first
+      setIsAvatarMenuOpen(false);
+      
       // Call logout API to log the logout event
       await axios.post("http://localhost:3001/auth/logout", {}, {
         headers: { accessToken: localStorage.getItem("accessToken") }
@@ -294,20 +339,31 @@ function App() {
       // Continue with logout even if API call fails
     }
     
+    // Clear all local storage
     localStorage.removeItem("accessToken");
-    localStorage.removeItem("organizationInfo"); // Clear organization cache
+    localStorage.removeItem("organizationInfo");
+    
+    // Reset all state
     setAuthState({ username: "", id: 0, userId: "", role: "", saccoId: "", branchId: "", permissions: {}, status: false });
     setOrganizationInfo({ sacco: { saccoId: '', saccoName: '' }, branch: { branchId: '', branchName: '' } });
+    
+    // Redirect to login page
     window.location.href = "/login";
   };
 
   const [isAvatarMenuOpen, setIsAvatarMenuOpen] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
   const avatarMenuRef = useRef(null);
   useEffect(() => {
     function handleClickOutside(event) {
+      // Check if click is outside the avatar menu container
       if (avatarMenuRef.current && !avatarMenuRef.current.contains(event.target)) {
-        setIsAvatarMenuOpen(false);
+        // Also check if click is not on the dropdown itself (since it's rendered via portal)
+        const dropdown = document.querySelector('.avatarDropdown');
+        if (!dropdown || !dropdown.contains(event.target)) {
+          setIsAvatarMenuOpen(false);
+        }
       }
     }
     document.addEventListener("mousedown", handleClickOutside);
@@ -370,17 +426,8 @@ function App() {
                   <Sidebar />
                 <NavbarWrapper>
                 <div className="links">
-                  {!authState.status ? (
-                    <>
-                      {/* <Link to="/login"> Login</Link>
-                      <Link to="/registration"> Registration</Link> */}
-                    </>
-                  ) : (
-                    <>
-                      {/* Organization Info Display */}
-                      {organizationDisplay}
-                    </>
-                  )}
+                  {/* Organization Info Display - conditionally rendered based on auth and route */}
+                  <OrganizationDisplay />
                 </div>
                 <div className="loggedInContainer">
                   {authState.status && (
@@ -428,10 +475,21 @@ function App() {
                         {/* <button className="avatarButton" > */}
                           <div className="avatar" onClick={() => setIsAvatarMenuOpen(v => !v)} aria-haspopup="true" aria-expanded={isAvatarMenuOpen}>{authState?.username?.[0]?.toUpperCase() || "U"}</div>
                         {/* </button> */}
-                        {isAvatarMenuOpen && (
+                        {isAvatarMenuOpen && createPortal(
                           <div className="avatarDropdown" role="menu">
-                            <button className="dropdownItem" onClick={logout}>Logout</button>
-                          </div>
+                            <button 
+                              className="dropdownItem" 
+                              onClick={logout}
+                              disabled={isLoggingOut}
+                              style={{ 
+                                opacity: isLoggingOut ? 0.6 : 1,
+                                cursor: isLoggingOut ? 'not-allowed' : 'pointer'
+                              }}
+                            >
+                              {isLoggingOut ? 'Logging out...' : 'Logout'}
+                            </button>
+                          </div>,
+                          document.body
                         )}
                       </div>
                     </>
@@ -458,6 +516,10 @@ function App() {
                 <Route path="/charges-form/:id" exact component={ChargesForm} />
                 <Route path="/accounts-management" exact component={AccountsManagement} />
                 <Route path="/account-form/:id" exact component={AccountForm} />
+                <Route path="/loans-accounts/new" exact component={LoansAccountsForm} />
+                <Route path="/loans-accounts/:id" exact component={LoansAccountsForm} />
+                <Route path="/savings-products/new" exact component={SavingsProductsForm} />
+                <Route path="/savings-products/:id" exact component={SavingsProductsForm} />
                 <Route path="/role-maintenance" exact component={RoleMaintenance} />
                 <Route path="/role-form/:id" exact component={RoleForm} />
                 <Route path="/sacco-maintenance" exact component={SaccoMaintenance} />

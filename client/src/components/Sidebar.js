@@ -10,7 +10,19 @@ import frontendLoggingService from "../services/frontendLoggingService";
 import MemberForm from "../pages/MemberForm";
 import Member360View from "../pages/Member360View";
 import SavingsAccountsForm from "../pages/SavingsAccountsForm";
+import LoansAccountsForm from "../pages/LoansAccountsForm";
+import FixedDepositsForm from "../pages/FixedDepositsForm";
 import AccountOfficerForm from "../pages/AccountOfficerForm";
+import SavingsProductsForm from "../pages/SavingsProductsForm";
+import TransferTransactionForm from "../pages/TransferTransactionForm";
+import LoansProductsForm from "../pages/LoansProductsForm";
+import TransactionMaintenance from "../pages/TransactionMaintenance";
+import CashTransactionForm from "../pages/CashTransactionForm";
+import BranchForm from "../pages/BranchForm";
+import TillForm from "../pages/TillForm";
+import ChargesForm from "../pages/ChargesForm";
+import GLAccountForm from "../pages/GLAccountForm";
+import SmartTeller from "../pages/SmartTeller";
 
 function Sidebar() {
   const { isOpen, setIsOpen, isAuthenticated } = useSidebar();
@@ -19,18 +31,24 @@ function Sidebar() {
   const [accountsOpen, setAccountsOpen] = useState(false);
   const [adminOpen, setAdminOpen] = useState(false);
   const [configOpen, setConfigOpen] = useState(false);
-  const [accountingOpen, setAccountingOpen] = useState(false);
   const [transactionsOpen, setTransactionsOpen] = useState(false);
   const [staticDataOpen, setStaticDataOpen] = useState(false);
   const [loansOpen, setLoansOpen] = useState(false);
   const [payoutsOpen, setPayoutsOpen] = useState(false);
+  const [productsOpen, setProductsOpen] = useState(false);
   const location = useLocation();
   const history = useHistory();
   const { authState } = React.useContext(AuthContext);
   const { canView } = usePermissions();
   
+  // Hide sidebar completely on login page
+  const isLoginPage = location.pathname === '/login';
+  if (isLoginPage) {
+    return null;
+  }
+  
   // Debug: Check permissions
-  console.log('ACCOUNTS_MANAGEMENT permission:', canView(PERMISSIONS.ACCOUNTS_MANAGEMENT));
+  // console.log('ACCOUNTS_MANAGEMENT permission:', canView(PERMISSIONS.ACCOUNTS_MANAGEMENT));
   
   // Helper function to open member maintenance window
   const openMemberMaintenanceWindow = () => {
@@ -105,6 +123,302 @@ function Sidebar() {
       setTimeout(() => restoreWindow(windowId), 0);
     }
     frontendLoggingService.logMenuClick("Accounts", "Savings Accounts");
+  };
+
+  // Helper function to open loans accounts window
+  const openLoansAccountsWindow = () => {
+    const existingWindow = getWindowByType('loans-accounts');
+    if (existingWindow) {
+      // If window exists but is minimized, restore it
+      if (existingWindow.isMinimized) {
+        restoreWindow(existingWindow.id);
+      } else {
+        // If window is already open, bring it to front
+        bringToFront(existingWindow.id);
+      }
+    } else {
+      const windowId = openWindow({
+        type: 'loans-accounts',
+        title: 'Loans Accounts',
+        icon: '🏦',
+        component: LoansAccountsForm,
+        props: { id: 'new', isWindowMode: true }
+      });
+      // Automatically restore the newly opened window
+      setTimeout(() => restoreWindow(windowId), 0);
+    }
+    frontendLoggingService.logMenuClick("Accounts", "Loans Accounts");
+  };
+
+  // Helper function to open fixed deposits window
+  const openFixedDepositsWindow = () => {
+    const existingWindow = getWindowByType('fixed-deposits');
+    if (existingWindow) {
+      // If window exists but is minimized, restore it
+      if (existingWindow.isMinimized) {
+        restoreWindow(existingWindow.id);
+      } else {
+        // If window is already open, bring it to front
+        bringToFront(existingWindow.id);
+      }
+    } else {
+      const windowId = openWindow({
+        type: 'fixed-deposits',
+        title: 'Fixed Deposits',
+        icon: '💎',
+        component: FixedDepositsForm,
+        props: { id: 'new', isWindowMode: true }
+      });
+      // Automatically restore the newly opened window
+      setTimeout(() => restoreWindow(windowId), 0);
+    }
+    frontendLoggingService.logMenuClick("Accounts", "Fixed Deposits");
+  };
+
+  // Helper function to open savings products window
+  const openSavingsProductsWindow = () => {
+    const existingWindow = getWindowByType('savings-products');
+    if (existingWindow) {
+      // If window exists but is minimized, restore it
+      if (existingWindow.isMinimized) {
+        restoreWindow(existingWindow.id);
+      } else {
+        // If window is already open, bring it to front
+        bringToFront(existingWindow.id);
+      }
+    } else {
+      const windowId = openWindow({
+        type: 'savings-products',
+        title: 'Savings Products',
+        icon: '💰',
+        component: SavingsProductsForm,
+        props: { id: 'new', isWindowMode: true }
+      });
+      // Automatically restore the newly opened window
+      setTimeout(() => restoreWindow(windowId), 0);
+    }
+    frontendLoggingService.logMenuClick("Products", "Savings Products");
+  };
+
+  // Helper function to open transfer transaction window
+  const openTransferTransactionWindow = () => {
+    const existingWindow = getWindowByType('transfer-transaction');
+    if (existingWindow) {
+      // If window exists but is minimized, restore it
+      if (existingWindow.isMinimized) {
+        restoreWindow(existingWindow.id);
+      } else {
+        // If window is already open, bring it to front
+        bringToFront(existingWindow.id);
+      }
+    } else {
+      const windowId = openWindow({
+        type: 'transfer-transaction',
+        title: 'Transfer Transaction',
+        icon: '💸',
+        component: TransferTransactionForm,
+        props: { id: 'new', isWindowMode: true }
+      });
+      // Automatically restore the newly opened window
+      setTimeout(() => restoreWindow(windowId), 0);
+    }
+    frontendLoggingService.logMenuClick("Transactions", "Transfer Transaction");
+  };
+
+  const openLoansProductsWindow = () => {
+    const existingWindow = getWindowByType('loans-products');
+    if (existingWindow) {
+      if (existingWindow.isMinimized) {
+        restoreWindow(existingWindow.id);
+      } else {
+        bringToFront(existingWindow.id);
+      }
+    } else {
+      const windowId = openWindow({
+        type: 'loans-products',
+        title: 'Loans Products',
+        icon: '🏦',
+        component: LoansProductsForm,
+        props: { id: 'new', isWindowMode: true }
+      });
+      setTimeout(() => restoreWindow(windowId), 0);
+    }
+    frontendLoggingService.logMenuClick("Products", "Loans Products");
+  };
+
+  // Helper function to open general ledger window
+  const openGeneralLedgerWindow = () => {
+    const existingWindow = getWindowByType('general-ledger');
+    if (existingWindow) {
+      // If window exists but is minimized, restore it
+      if (existingWindow.isMinimized) {
+        restoreWindow(existingWindow.id);
+      } else {
+        // If window is already open, bring it to front
+        bringToFront(existingWindow.id);
+      }
+    } else {
+      const windowId = openWindow({
+        type: 'general-ledger',
+        title: 'General Ledger Maintenance',
+        icon: '📒',
+        component: TransactionMaintenance,
+        props: { isWindowMode: true }
+      });
+      // Automatically restore the newly opened window
+      setTimeout(() => restoreWindow(windowId), 0);
+    }
+    frontendLoggingService.logMenuClick("Transactions", "General Ledger");
+  };
+
+  // Helper function to open smart teller window
+  const openSmartTellerWindow = () => {
+    const existingWindow = getWindowByType('smart-teller');
+    if (existingWindow) {
+      // If window exists but is minimized, restore it
+      if (existingWindow.isMinimized) {
+        restoreWindow(existingWindow.id);
+      } else {
+        // If window is already open, bring it to front
+        bringToFront(existingWindow.id);
+      }
+    } else {
+      const windowId = openWindow({
+        type: 'smart-teller',
+        title: 'Smart Teller - Multi-Entry Transaction',
+        icon: '💰',
+        component: SmartTeller,
+        props: { isWindowMode: true }
+      });
+      // Automatically restore the newly opened window
+      setTimeout(() => restoreWindow(windowId), 0);
+    }
+    frontendLoggingService.logMenuClick("Transactions", "Smart Teller");
+  };
+
+  // Helper function to open charges form window
+  const openChargesFormWindow = () => {
+    const existingWindow = getWindowByType('charges-form');
+    if (existingWindow) {
+      // If window exists but is minimized, restore it
+      if (existingWindow.isMinimized) {
+        restoreWindow(existingWindow.id);
+      } else {
+        // If window is already open, bring it to front
+        bringToFront(existingWindow.id);
+      }
+    } else {
+      const windowId = openWindow({
+        type: 'charges-form',
+        title: 'Charges Maintenance',
+        icon: '💳',
+        component: ChargesForm,
+        props: { id: 'new', isWindowMode: true }
+      });
+      // Automatically restore the newly opened window
+      setTimeout(() => restoreWindow(windowId), 0);
+    }
+    frontendLoggingService.logMenuClick("Configurations", "Charges Maintenance");
+  };
+
+  // Helper function to open cash transaction form window
+  const openCashTransactionWindow = () => {
+    const existingWindow = getWindowByType('cash-transaction-form');
+    if (existingWindow) {
+      // If window exists but is minimized, restore it
+      if (existingWindow.isMinimized) {
+        restoreWindow(existingWindow.id);
+      } else {
+        // If window is already open, bring it to front
+        bringToFront(existingWindow.id);
+      }
+    } else {
+      const windowId = openWindow({
+        type: 'cash-transaction-form',
+        title: 'Cash Transaction',
+        icon: '💵',
+        component: CashTransactionForm,
+        props: { isWindowMode: true }
+      });
+      // Automatically restore the newly opened window
+      setTimeout(() => restoreWindow(windowId), 0);
+    }
+    frontendLoggingService.logMenuClick("Transactions", "Cash Transaction");
+  };
+
+  // Helper function to open branch maintenance window
+  const openBranchMaintenanceWindow = () => {
+    const existingWindow = getWindowByType('branch-maintenance');
+    if (existingWindow) {
+      // If window exists but is minimized, restore it
+      if (existingWindow.isMinimized) {
+        restoreWindow(existingWindow.id);
+      } else {
+        // If window is already open, bring it to front
+        bringToFront(existingWindow.id);
+      }
+    } else {
+      const windowId = openWindow({
+        type: 'branch-maintenance',
+        title: 'Branch Maintenance',
+        icon: '🏢',
+        component: BranchForm,
+        props: { id: 'new', isWindowMode: true }
+      });
+      // Automatically restore the newly opened window
+      setTimeout(() => restoreWindow(windowId), 0);
+    }
+    frontendLoggingService.logMenuClick("Configurations", "Branch Maintenance");
+  };
+
+  // Helper function to open till maintenance window
+  const openTillMaintenanceWindow = () => {
+    const existingWindow = getWindowByType('till-maintenance');
+    if (existingWindow) {
+      // If window exists but is minimized, restore it
+      if (existingWindow.isMinimized) {
+        restoreWindow(existingWindow.id);
+      } else {
+        // If window is already open, bring it to front
+        bringToFront(existingWindow.id);
+      }
+    } else {
+      const windowId = openWindow({
+        type: 'till-maintenance',
+        title: 'Till Maintenance',
+        icon: '💰',
+        component: TillForm,
+        props: { id: 'new', isWindowMode: true }
+      });
+      // Automatically restore the newly opened window
+      setTimeout(() => restoreWindow(windowId), 0);
+    }
+    frontendLoggingService.logMenuClick("Configurations", "Till Maintenance");
+  };
+
+  // Helper function to open GL Accounts window
+  const openGLAccountsWindow = () => {
+    const existingWindow = getWindowByType('gl-accounts');
+    if (existingWindow) {
+      // If window exists but is minimized, restore it
+      if (existingWindow.isMinimized) {
+        restoreWindow(existingWindow.id);
+      } else {
+        // If window is already open, bring it to front
+        bringToFront(existingWindow.id);
+      }
+    } else {
+      const windowId = openWindow({
+        type: 'gl-accounts',
+        title: 'GL Accounts',
+        icon: '📒',
+        component: GLAccountForm,
+        props: { id: 'new', isWindowMode: true }
+      });
+      // Automatically restore the newly opened window
+      setTimeout(() => restoreWindow(windowId), 0);
+    }
+    frontendLoggingService.logMenuClick("Accounts", "GL Accounts");
   };
 
   return (
@@ -185,7 +499,6 @@ function Sidebar() {
                 setMembersOpen(v => !v);
                 setAdminOpen(false);
                 setConfigOpen(false);
-                setAccountingOpen(false);
                 setTransactionsOpen(false);
                 setStaticDataOpen(false);
                 setLoansOpen(false);
@@ -215,6 +528,171 @@ function Sidebar() {
             </>
           )}
 
+          {/* Accounts Section - Only show if user has permission to view accounts management */}
+          {canView(PERMISSIONS.ACCOUNTS_MANAGEMENT) && (
+            <>
+              <button className={`o-menu__item`} type="button" onClick={() => {
+                frontendLoggingService.logMenuClick("Accounts", accountsOpen ? "Close" : "Open");
+                setAccountsOpen(v => !v);
+                setMembersOpen(false);
+                setAdminOpen(false);
+                setConfigOpen(false);
+                setTransactionsOpen(false);
+                setStaticDataOpen(false);
+                setLoansOpen(false);
+                setPayoutsOpen(false);
+                setProductsOpen(false);
+              }}>
+                <span className="o-menu__icon"><FiCreditCard /></span>
+                <span className="o-menu__label">Accounts</span>
+                <span className={`o-menu__arrow ${accountsOpen ? "up" : "down"}`}>{accountsOpen ? <FiChevronUp /> : <FiChevronDown />}</span>
+              </button>
+
+              {accountsOpen && (
+                <div className="o-submenu">
+                  <button 
+                    className={`o-submenu__item ${isWindowOpen('savings-accounts') ? "active" : ""}`} 
+                    onClick={openSavingsAccountsWindow}
+                  >
+                    Savings Accounts
+                  </button>
+                  <button 
+                    className={`o-submenu__item ${isWindowOpen('loans-accounts') ? "active" : ""}`} 
+                    onClick={openLoansAccountsWindow}
+                  >
+                    Loans Accounts
+                  </button>
+                  <button 
+                    className={`o-submenu__item ${isWindowOpen('fixed-deposits') ? "active" : ""}`} 
+                    onClick={openFixedDepositsWindow}
+                  >
+                    Fixed Deposits
+                  </button>
+                  <button 
+                    className={`o-submenu__item ${isWindowOpen('gl-accounts') ? "active" : ""}`} 
+                    onClick={openGLAccountsWindow}
+                  >
+                    GL Accounts
+                  </button>
+                </div>
+              )}
+            </>
+          )}
+
+          {/* Products Section - Only show if user has permission to view product maintenance */}
+          {canView(PERMISSIONS.PRODUCT_MAINTENANCE) && (
+            <>
+              <button className={`o-menu__item`} type="button" onClick={() => {
+                frontendLoggingService.logMenuClick("Products", productsOpen ? "Close" : "Open");
+                setProductsOpen(v => !v);
+                setMembersOpen(false);
+                setAccountsOpen(false);
+                setAdminOpen(false);
+                setConfigOpen(false);
+                setTransactionsOpen(false);
+                setStaticDataOpen(false);
+                setLoansOpen(false);
+                setPayoutsOpen(false);
+              }}>
+                <span className="o-menu__icon"><FiDollarSign /></span>
+                <span className="o-menu__label">Products</span>
+                <span className={`o-menu__arrow ${productsOpen ? "up" : "down"}`}>{productsOpen ? <FiChevronUp /> : <FiChevronDown />}</span>
+              </button>
+
+              {productsOpen && (
+                <div className="o-submenu">
+                  <button 
+                    className={`o-submenu__item ${isWindowOpen('savings-products') ? "active" : ""}`} 
+                    onClick={openSavingsProductsWindow}
+                  >
+                    Savings Products
+                  </button>
+                  <button 
+                    className={`o-submenu__item ${isWindowOpen('loans-products') ? "active" : ""}`} 
+                    onClick={openLoansProductsWindow}
+                  >
+                    Loans Products
+                  </button>
+                </div>
+              )}
+            </>
+          )}
+
+          {/* Transactions Section - Moved after Products - Only show if user has permission to view transactions module */}
+          {canView(PERMISSIONS.TRANSACTION_MAINTENANCE) && (
+            <>
+              <button className={`o-menu__item`} type="button" onClick={() => {
+                frontendLoggingService.logMenuClick("Transactions", transactionsOpen ? "Close" : "Open");
+                setTransactionsOpen(v => !v);
+                setMembersOpen(false);
+                setAccountsOpen(false);
+                setAdminOpen(false);
+                setConfigOpen(false);
+                setStaticDataOpen(false);
+                setLoansOpen(false);
+                setPayoutsOpen(false);
+                setProductsOpen(false);
+              }}>
+                <span className="o-menu__icon"><FiCreditCard /></span>
+                <span className="o-menu__label">Transactions</span>
+                <span className={`o-menu__arrow ${transactionsOpen ? "up" : "down"}`}>{transactionsOpen ? <FiChevronUp /> : <FiChevronDown />}</span>
+              </button>
+
+              {transactionsOpen && (
+                <div className="o-submenu">
+                  <button 
+                    className={`o-submenu__item ${isWindowOpen('transfer-transaction') ? "active" : ""}`} 
+                    onClick={openTransferTransactionWindow}
+                    style={{
+                      cursor: 'pointer',
+                      fontSize: 'inherit',
+                      fontFamily: 'inherit',
+                      fontWeight: 'inherit'
+                    }}
+                  >
+                    Transfer Transaction
+                  </button>
+                  <button 
+                    className={`o-submenu__item ${isWindowOpen('general-ledger') ? "active" : ""}`} 
+                    onClick={openGeneralLedgerWindow}
+                    style={{
+                      cursor: 'pointer',
+                      fontSize: 'inherit',
+                      fontFamily: 'inherit',
+                      fontWeight: 'inherit'
+                    }}
+                  >
+                    General Ledger
+                  </button>
+                  <button 
+                    className={`o-submenu__item ${isWindowOpen('cash-transaction-form') ? "active" : ""}`} 
+                    onClick={openCashTransactionWindow}
+                    style={{
+                      cursor: 'pointer',
+                      fontSize: 'inherit',
+                      fontFamily: 'inherit',
+                      fontWeight: 'inherit'
+                    }}
+                  >
+                    Cash Transaction
+                  </button>
+                  <button 
+                    className={`o-submenu__item ${isWindowOpen('smart-teller') ? "active" : ""}`} 
+                    onClick={openSmartTellerWindow}
+                    style={{
+                      cursor: 'pointer',
+                      fontSize: 'inherit',
+                      fontFamily: 'inherit',
+                      fontWeight: 'inherit'
+                    }}
+                  >
+                    Smart Teller
+                  </button>
+                </div>
+              )}
+            </>
+          )}
+
           {/* Admin Section - Only show if user has permission to view any admin module */}
           {(canView(PERMISSIONS.USER_MAINTENANCE) ||
             canView(PERMISSIONS.ROLE_MAINTENANCE) ||
@@ -226,11 +704,11 @@ function Sidebar() {
                 setMembersOpen(false);
                 setAccountsOpen(false);
                 setConfigOpen(false);
-                setAccountingOpen(false);
                 setTransactionsOpen(false);
                 setStaticDataOpen(false);
                 setLoansOpen(false);
                 setPayoutsOpen(false);
+                setProductsOpen(false);
               }}>
                 <span className="o-menu__icon"><FiUsers /></span>
                 <span className="o-menu__label">Admin</span>
@@ -284,10 +762,11 @@ function Sidebar() {
                 setMembersOpen(false);
                 setAccountsOpen(false);
                 setAdminOpen(false);
-                setAccountingOpen(false);
                 setTransactionsOpen(false);
                 setStaticDataOpen(false);
                 setLoansOpen(false);
+                setPayoutsOpen(false);
+                setProductsOpen(false);
               }}>
                 <span className="o-menu__icon"><FiSettings /></span>
                 <span className="o-menu__label">Configurations</span>
@@ -296,50 +775,36 @@ function Sidebar() {
 
               {configOpen && (
                 <div className="o-submenu">
-                  {canView(PERMISSIONS.PRODUCT_MAINTENANCE) && (
-                    <Link 
-                      className={`o-submenu__item ${location.pathname === "/product-maintenance" ? "active" : ""}`} 
-                      to="/product-maintenance"
-                      onClick={() => frontendLoggingService.logMenuClick("Configurations", "Product Maintenance")}
-                    >
-                      Product Maintenance
-                    </Link>
-                  )}
-                  {canView(PERMISSIONS.SACCO_MAINTENANCE) && (
-                    <Link 
-                      className={`o-submenu__item ${location.pathname === "/sacco-maintenance" ? "active" : ""}`} 
-                      to="/sacco-maintenance"
-                      onClick={() => frontendLoggingService.logMenuClick("Configurations", "Sacco Maintenance")}
-                    >
-                      Sacco Maintenance
-                    </Link>
-                  )}
                   {canView(PERMISSIONS.BRANCH_MAINTENANCE) && (
-                    <Link 
-                      className={`o-submenu__item ${location.pathname === "/branch-maintenance" ? "active" : ""}`} 
-                      to="/branch-maintenance"
-                      onClick={() => frontendLoggingService.logMenuClick("Configurations", "Branch Maintenance")}
+                    <button 
+                      className={`o-submenu__item ${isWindowOpen('branch-maintenance') ? "active" : ""}`} 
+                      onClick={openBranchMaintenanceWindow}
                     >
                       Branch Maintenance
-                    </Link>
+                    </button>
                   )}
                   {canView(PERMISSIONS.CHARGES_MANAGEMENT) && (
-                    <Link 
-                      className={`o-submenu__item ${location.pathname === "/charges-management" ? "active" : ""}`} 
-                      to="/charges-management"
-                      onClick={() => frontendLoggingService.logMenuClick("Configurations", "Charges Management")}
+                    <button 
+                      className={`o-submenu__item ${isWindowOpen('charges-form') ? "active" : ""}`} 
+                      onClick={openChargesFormWindow}
+                      style={{ background: 'none', border: 'none', width: '100%', textAlign: 'left', cursor: 'pointer' }}
                     >
-                      Charges Management
-                    </Link>
+                      Charges Maintenance
+                    </button>
                   )}
                   {canView(PERMISSIONS.TILL_MAINTENANCE) && (
-                    <Link 
-                      className={`o-submenu__item ${location.pathname === "/till-maintenance" ? "active" : ""}`} 
-                      to="/till-maintenance"
-                      onClick={() => frontendLoggingService.logMenuClick("Configurations", "Till Maintenance")}
+                    <button 
+                      className={`o-submenu__item ${isWindowOpen('till-maintenance') ? "active" : ""}`} 
+                      onClick={openTillMaintenanceWindow}
+                      style={{
+                        cursor: 'pointer',
+                        fontSize: 'inherit',
+                        fontFamily: 'inherit',
+                        fontWeight: 'inherit'
+                      }}
                     >
                       Till Maintenance
-                    </Link>
+                    </button>
                   )}
                   {canView(PERMISSIONS.ID_MAINTENANCE) && (
                     <Link 
@@ -350,112 +815,6 @@ function Sidebar() {
                       Identification Numbers Maintenance
                     </Link>
                   )}
-                </div>
-              )}
-            </>
-          )}
-
-          {/* Accounting Section - Only show if user has permission to view accounting module */}
-          {(canView(PERMISSIONS.ACCOUNTS_MANAGEMENT) || true) && (
-            <>
-              <button className={`o-menu__item`} type="button" onClick={() => {
-                setAccountingOpen(v => !v);
-                setMembersOpen(false);
-                setAccountsOpen(false);
-                setAdminOpen(false);
-                setConfigOpen(false);
-                setTransactionsOpen(false);
-                setStaticDataOpen(false);
-                setLoansOpen(false);
-              }}>
-                <span className="o-menu__icon"><FiDollarSign /></span>
-                <span className="o-menu__label">Accounting</span>
-                <span className={`o-menu__arrow ${accountingOpen ? "up" : "down"}`}>{accountingOpen ? <FiChevronUp /> : <FiChevronDown />}</span>
-              </button>
-
-              {accountingOpen && (
-                <div className="o-submenu">
-                  <button 
-                    className={`o-submenu__item ${isWindowOpen('savings-accounts') ? "active" : ""}`} 
-                    onClick={openSavingsAccountsWindow}
-                  >
-                    Savings Accounts
-                  </button>
-                  <Link 
-                    className={`o-submenu__item ${location.pathname === "/accounts-management" ? "active" : ""}`} 
-                    to="/accounts-management"
-                    onClick={() => frontendLoggingService.logMenuClick("Accounting", "Member Accounts")}
-                  >
-                    Member Accounts
-                  </Link>
-                  <Link 
-                    className={`o-submenu__item ${location.pathname === "/gl-accounts-management" ? "active" : ""}`} 
-                    to="/gl-accounts-management"
-                    onClick={() => frontendLoggingService.logMenuClick("Accounting", "GL Accounts")}
-                  >
-                    GL Accounts
-                  </Link>
-                  <Link 
-                    className={`o-submenu__item ${location.pathname === "/account-types-maintenance" ? "active" : ""}`} 
-                    to="/account-types-maintenance"
-                    onClick={() => frontendLoggingService.logMenuClick("Accounting", "Account Types")}
-                  >
-                    Account Types
-                  </Link>
-                </div>
-              )}
-            </>
-          )}
-
-          {/* Transactions Section - Only show if user has permission to view transactions module */}
-          {canView(PERMISSIONS.TRANSACTION_MAINTENANCE) && (
-            <>
-              <button className={`o-menu__item`} type="button" onClick={() => {
-                frontendLoggingService.logMenuClick("Transactions", transactionsOpen ? "Close" : "Open");
-                setTransactionsOpen(v => !v);
-                setMembersOpen(false);
-                setAccountsOpen(false);
-                setAdminOpen(false);
-                setConfigOpen(false);
-                setAccountingOpen(false);
-                setStaticDataOpen(false);
-                setLoansOpen(false);
-              }}>
-                <span className="o-menu__icon"><FiCreditCard /></span>
-                <span className="o-menu__label">Transactions</span>
-                <span className={`o-menu__arrow ${transactionsOpen ? "up" : "down"}`}>{transactionsOpen ? <FiChevronUp /> : <FiChevronDown />}</span>
-              </button>
-
-              {transactionsOpen && (
-                <div className="o-submenu">
-                  <Link 
-                    className={`o-submenu__item ${location.pathname === "/transactions" ? "active" : ""}`} 
-                    to="/transactions"
-                    onClick={() => frontendLoggingService.logMenuClick("Transactions", "Transactions Universe")}
-                  >
-                    General Ledger
-                  </Link>
-                  <Link 
-                    className={`o-submenu__item ${location.pathname === "/cash-transactions" ? "active" : ""}`} 
-                    to="/cash-transactions"
-                    onClick={() => frontendLoggingService.logMenuClick("Transactions", "Cash Transactions")}
-                  >
-                    Cash Transactions
-                  </Link>
-                  <Link 
-                    className={`o-submenu__item ${location.pathname === "/transfer-transaction" ? "active" : ""}`} 
-                    to="/transfer-transaction"
-                    onClick={() => frontendLoggingService.logMenuClick("Transactions", "Transfer Transaction")}
-                  >
-                    Transfer Transaction
-                  </Link>
-                  <Link 
-                    className={`o-submenu__item ${location.pathname === "/smart-teller" ? "active" : ""}`} 
-                    to="/smart-teller"
-                    onClick={() => frontendLoggingService.logMenuClick("Transactions", "Smart Teller")}
-                  >
-                    Smart Teller
-                  </Link>
                 </div>
               )}
             </>
@@ -478,9 +837,10 @@ function Sidebar() {
                 setAccountsOpen(false);
                 setAdminOpen(false);
                 setConfigOpen(false);
-                setAccountingOpen(false);
                 setTransactionsOpen(false);
                 setLoansOpen(false);
+                setPayoutsOpen(false);
+                setProductsOpen(false);
               }}>
                 <span className="o-menu__icon"><FiDatabase /></span>
                 <span className="o-menu__label">Static Data</span>
@@ -621,9 +981,10 @@ function Sidebar() {
                 setAccountsOpen(false);
                 setAdminOpen(false);
                 setConfigOpen(false);
-                setAccountingOpen(false);
                 setTransactionsOpen(false);
                 setStaticDataOpen(false);
+                setPayoutsOpen(false);
+                setProductsOpen(false);
               }}>
                 <span className="o-menu__icon"><FiFileText /></span>
                 <span className="o-menu__label">Loans</span>
@@ -701,10 +1062,10 @@ function Sidebar() {
                 setAccountsOpen(false);
                 setAdminOpen(false);
                 setConfigOpen(false);
-                setAccountingOpen(false);
                 setTransactionsOpen(false);
                 setStaticDataOpen(false);
                 setLoansOpen(false);
+                setProductsOpen(false);
               }}>
                 <span className="o-menu__icon"><FiTrendingUp /></span>
                 <span className="o-menu__label">Payouts</span>

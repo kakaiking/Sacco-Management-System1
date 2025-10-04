@@ -11,7 +11,7 @@ import { usePermissions } from "../hooks/usePermissions";
 import { PERMISSIONS } from "../helpers/PermissionUtils";
 import frontendLoggingService from "../services/frontendLoggingService";
 
-function CashTransactions() {
+function CashTransactions({ isWindowMode = false, onRefresh }) {
   const history = useHistory();
   const { showMessage } = useSnackbar();
   const { authState, isLoading } = useContext(AuthContext);
@@ -39,25 +39,39 @@ function CashTransactions() {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
 
+  // Extract fetch function so it can be called on demand
+  const fetchTransactions = async (signal) => {
+    try {
+      const params = {};
+      if (statusFilter) params.status = statusFilter;
+      if (search) params.q = search;
+      const res = await axios.get("http://localhost:3001/transactions/cash", {
+        headers: { accessToken: localStorage.getItem("accessToken") },
+        params,
+        signal,
+      });
+      const payload = res?.data?.entity?.transactions ?? res?.data?.entity ?? res?.data;
+      setTransactions(Array.isArray(payload) ? payload : []);
+    } catch {}
+  };
+
   useEffect(() => {
     const controller = new AbortController();
-    const fetchTransactions = async () => {
-      try {
-        const params = {};
-        if (statusFilter) params.status = statusFilter;
-        if (search) params.q = search;
-        const res = await axios.get("http://localhost:3001/transactions/cash", {
-          headers: { accessToken: localStorage.getItem("accessToken") },
-          params,
-          signal: controller.signal,
-        });
-        const payload = res?.data?.entity?.transactions ?? res?.data?.entity ?? res?.data;
-        setTransactions(Array.isArray(payload) ? payload : []);
-      } catch {}
-    };
-    fetchTransactions();
+    fetchTransactions(controller.signal);
     return () => controller.abort();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [statusFilter, search]);
+
+  // Handle refresh from window header button
+  useEffect(() => {
+    if (onRefresh) {
+      onRefresh(async () => {
+        await fetchTransactions();
+        showMessage("Cash transactions refreshed successfully", "success");
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [onRefresh]);
 
   const counts = useMemo(() => {
     const list = Array.isArray(transactions) ? transactions : [];
@@ -155,20 +169,38 @@ function CashTransactions() {
         return {
           id: transactionId,
           transactionId: transaction?.transactionId,
+          referenceNumber: transaction?.referenceNumber,
           amount: transaction?.amount,
           status: transaction?.status
         };
       });
 
-      const promises = selectedTransactions.map(transactionId => 
-        axios.put(`http://localhost:3001/transactions/${transactionId}/status`, {
-          status: statusAction
-        }, {
-          headers: { accessToken: localStorage.getItem("accessToken") }
-        })
-      );
-      
-      await Promise.all(promises);
+      // For Approved status, use the proper approval endpoint
+      if (statusAction === "Approved") {
+        const promises = selectedTransactions.map(async transactionId => {
+          const transaction = transactions.find(t => t.id === transactionId);
+          if (!transaction?.referenceNumber) {
+            throw new Error(`Transaction ${transactionId} has no reference number`);
+          }
+          // Use the correct approval endpoint that updates balances
+          return axios.put(
+            `http://localhost:3001/transactions/reference/${transaction.referenceNumber}/approve`, 
+            {},
+            { headers: { accessToken: localStorage.getItem("accessToken") } }
+          );
+        });
+        await Promise.all(promises);
+      } else {
+        // For other status changes (Return, Reject), use the regular update
+        const promises = selectedTransactions.map(transactionId => 
+          axios.put(`http://localhost:3001/transactions/${transactionId}`, {
+            status: statusAction
+          }, {
+            headers: { accessToken: localStorage.getItem("accessToken") }
+          })
+        );
+        await Promise.all(promises);
+      }
       
       // Prepare after data for logging
       const afterData = beforeData.map(transaction => ({
@@ -275,7 +307,408 @@ function CashTransactions() {
     );
   }
 
-  return (
+  return isWindowMode ? (
+    <div style={{ 
+      width: '100%', 
+      height: '100%', 
+      overflow: 'auto', 
+      padding: '20px',
+      boxSizing: 'border-box',
+      backgroundColor: 'white'
+    }}>
+      <main style={{ width: '100%' }}>
+        <section className="cards cards--status" style={{ marginBottom: '20px' }}>
+          <div className="card card--approved" style={{ borderRadius: '12px' }}>
+            <div className="card__icon">
+              <FiCheckCircle />
+            </div>
+            <div className="card__content">
+              <h4>Approved</h4>
+              <div className="card__kpi">{counts.Approved}</div>
+            </div>
+          </div>
+          <div className="card card--pending" style={{ borderRadius: '12px' }}>
+            <div className="card__icon">
+              <FiClock />
+            </div>
+            <div className="card__content">
+              <h4>Pending</h4>
+              <div className="card__kpi">{counts.Pending}</div>
+            </div>
+          </div>
+          <div className="card card--returned" style={{ borderRadius: '12px' }}>
+            <div className="card__icon">
+              <FiRotateCcw />
+            </div>
+            <div className="card__content">
+              <h4>Returned</h4>
+              <div className="card__kpi">{counts.Returned}</div>
+            </div>
+          </div>
+          <div className="card card--rejected" style={{ borderRadius: '12px' }}>
+            <div className="card__icon">
+              <FiXCircle />
+            </div>
+            <div className="card__content">
+              <h4>Rejected</h4>
+              <div className="card__kpi">{counts.Rejected}</div>
+            </div>
+          </div>
+        </section>
+
+        <section className="card" style={{ padding: 12 }}>
+          <div className="tableToolbar">
+            <select className="statusSelect" value={statusFilter} onChange={e => {
+              frontendLoggingService.logFilter("Status", e.target.value, "CashTransaction", `Filtered cash transactions by status: ${e.target.value || 'All'}`);
+              setStatusFilter(e.target.value);
+            }}>
+              <option value="">All Statuses</option>
+              <option value="Approved">Approved</option>
+              <option value="Pending">Pending</option>
+              <option value="Returned">Returned</option>
+              <option value="Rejected">Rejected</option>
+            </select>
+
+            <div className="searchWrapper">
+              <input className="searchInput" value={search} onChange={e => {
+                if (e.target.value.length > 2 || e.target.value.length === 0) {
+                  frontendLoggingService.logSearch(e.target.value, "CashTransaction", null, `Searched for cash transactions: "${e.target.value}"`);
+                }
+                setSearch(e.target.value);
+              }} placeholder="Search cash transactions..." />
+              <span className="searchIcon">🔍</span>
+            </div>
+
+            {/* Batch Action Buttons */}
+            {showBatchActions && canApprove(PERMISSIONS.CASH_TRANSACTION_MAINTENANCE) && (
+              <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+                <span style={{ fontSize: "14px", color: "var(--muted-text)", marginRight: "8px" }}>
+                  {selectedTransactions.length} selected
+                </span>
+                <button 
+                  className="pill" 
+                  onClick={() => {
+                    frontendLoggingService.logButtonClick("Approve Cash Transactions", "CashTransaction", null, `Clicked Approve button for ${selectedTransactions.length} selected cash transactions`);
+                    handleStatusChange("Approved");
+                  }}
+                  style={{
+                    backgroundColor: "#10b981",
+                    color: "white",
+                    border: "none",
+                    padding: "6px 12px",
+                    borderRadius: "8px",
+                    fontSize: "14px",
+                    fontWeight: "600",
+                    cursor: "pointer"
+                  }}
+                >
+                  Approve
+                </button>
+                <button 
+                  className="pill" 
+                  onClick={() => {
+                    frontendLoggingService.logButtonClick("Return Cash Transactions", "CashTransaction", null, `Clicked Return button for ${selectedTransactions.length} selected cash transactions`);
+                    handleStatusChange("Returned");
+                  }}
+                  style={{
+                    backgroundColor: "#f59e0b",
+                    color: "white",
+                    border: "none",
+                    padding: "6px 12px",
+                    borderRadius: "8px",
+                    fontSize: "14px",
+                    fontWeight: "600",
+                    cursor: "pointer"
+                  }}
+                >
+                  Return
+                </button>
+                <button 
+                  className="pill" 
+                  onClick={() => {
+                    frontendLoggingService.logButtonClick("Reject Cash Transactions", "CashTransaction", null, `Clicked Reject button for ${selectedTransactions.length} selected cash transactions`);
+                    handleStatusChange("Rejected");
+                  }}
+                  style={{
+                    backgroundColor: "#ef4444",
+                    color: "white",
+                    border: "none",
+                    padding: "6px 12px",
+                    borderRadius: "8px",
+                    fontSize: "14px",
+                    fontWeight: "600",
+                    cursor: "pointer"
+                  }}
+                >
+                  Reject
+                </button>
+              </div>
+            )}
+
+          </div>
+
+          <div className="tableContainer">
+            <table className="table">
+              <thead>
+                <tr>
+                  <th>
+                    <input
+                      type="checkbox"
+                      checked={isAllSelected}
+                      ref={input => {
+                        if (input) input.indeterminate = isIndeterminate;
+                      }}
+                      onChange={(e) => handleSelectAll(e.target.checked)}
+                      style={{ cursor: "pointer" }}
+                    />
+                  </th>
+                  <th>
+                    Transaction ID
+                    {sortField === 'transactionId' && (
+                      <span style={{ marginLeft: '8px', color: 'var(--primary-500)' }}>
+                        {sortDirection === 'asc' ? '↑' : '↓'}
+                      </span>
+                    )}
+                  </th>
+                  <th>Type</th>
+                  <th>Member Account</th>
+                  <th>Amount</th>
+                  <th>Narration</th>
+                  <th>
+                    Created On
+                    {sortField === 'createdOn' && (
+                      <span style={{ marginLeft: '8px', color: 'var(--primary-500)' }}>
+                        {sortDirection === 'asc' ? '↑' : '↓'}
+                      </span>
+                    )}
+                  </th>
+                  <th>Created By</th>
+                  <th>
+                    Status
+                    {sortField === 'status' && (
+                      <span style={{ marginLeft: '8px', color: 'var(--primary-500)' }}>
+                        {sortDirection === 'asc' ? '↑' : '↓'}
+                      </span>
+                    )}
+                  </th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {paginatedTransactions.map(transaction => (
+                  <tr key={transaction.id}>
+                    <td>
+                      <input
+                        type="checkbox"
+                        checked={selectedTransactions.includes(transaction.id)}
+                        onChange={(e) => handleSelectTransaction(transaction.id, e.target.checked)}
+                        style={{ cursor: "pointer" }}
+                      />
+                    </td>
+                    <td>{transaction.transactionId}</td>
+                    <td>
+                      <span style={{
+                        padding: "4px 8px",
+                        borderRadius: "4px",
+                        fontSize: "12px",
+                        fontWeight: "500",
+                        backgroundColor: transaction.transactionType === "debit" ? "#fee2e2" : "#dcfce7",
+                        color: transaction.transactionType === "debit" ? "#dc2626" : "#16a34a"
+                      }}>
+                        {transaction.transactionType === "debit" ? "Withdrawal" : "Deposit"}
+                      </span>
+                    </td>
+                    <td>
+                      {transaction.memberAccount?.member?.firstName} {transaction.memberAccount?.member?.lastName}
+                      <br />
+                      <small style={{ color: "#666" }}>
+                        {transaction.memberAccount?.product?.productName}
+                      </small>
+                    </td>
+                    <td style={{ textAlign: "right", fontWeight: "500" }}>
+                      {formatAmount(transaction.amount)}
+                    </td>
+                    <td>{transaction.remarks || '-'}</td>
+                    <td>{transaction.createdOn ? new Date(transaction.createdOn).toLocaleDateString() : '-'}</td>
+                    <td>{transaction.createdBy || '-'}</td>
+                    <td>
+                      <div 
+                        style={{
+                          display: "inline-block",
+                          padding: "6px 12px",
+                          borderRadius: "16px",
+                          fontSize: "12px",
+                          fontWeight: "600",
+                          textTransform: "uppercase",
+                          letterSpacing: "0.5px",
+                          backgroundColor: 
+                            transaction.status === "Approved" ? "rgba(16, 185, 129, 0.2)" :
+                            transaction.status === "Pending" ? "rgba(6, 182, 212, 0.2)" :
+                            transaction.status === "Returned" ? "rgba(245, 158, 11, 0.2)" :
+                            transaction.status === "Rejected" ? "rgba(239, 68, 68, 0.2)" :
+                            "rgba(107, 114, 128, 0.2)",
+                          color: 
+                            transaction.status === "Approved" ? "#059669" :
+                            transaction.status === "Pending" ? "#0891b2" :
+                            transaction.status === "Returned" ? "#d97706" :
+                            transaction.status === "Rejected" ? "#dc2626" :
+                            "#6b7280",
+                          border: `1px solid ${
+                            transaction.status === "Approved" ? "rgba(16, 185, 129, 0.3)" :
+                            transaction.status === "Pending" ? "rgba(6, 182, 212, 0.3)" :
+                            transaction.status === "Returned" ? "rgba(245, 158, 11, 0.3)" :
+                            transaction.status === "Rejected" ? "rgba(239, 68, 68, 0.3)" :
+                            "rgba(107, 114, 128, 0.3)"
+                          }`
+                        }}
+                      >
+                        {transaction.status}
+                      </div>
+                    </td>
+                    <td className="actions">
+                      <button className="action-btn action-btn--view" onClick={() => {
+                        frontendLoggingService.logView("CashTransaction", transaction.id, transaction.transactionId, "Viewed cash transaction details");
+                        history.push(`/cash-transaction/${transaction.id}`);
+                      }} title="View">
+                        <FiEye />
+                      </button>
+                      {canEdit(PERMISSIONS.CASH_TRANSACTION_MAINTENANCE) ? (
+                        <button className="action-btn action-btn--edit" onClick={() => {
+                          frontendLoggingService.logButtonClick("Edit Cash Transaction", "CashTransaction", transaction.id, `Clicked Edit button for cash transaction: ${transaction.transactionId}`);
+                          history.push(`/cash-transaction/${transaction.id}?edit=1`);
+                        }} title="Update">
+                          <FiEdit3 />
+                        </button>
+                      ) : (
+                        <button 
+                          className="action-btn action-btn--edit" 
+                          onClick={() => showMessage("Your role lacks permission to edit cash transactions", "error")} 
+                          title="Update - No Permission"
+                          style={{ opacity: 0.5, cursor: "not-allowed" }}
+                          disabled
+                        >
+                          <FiEdit3 />
+                        </button>
+                      )}
+                      {canDelete(PERMISSIONS.CASH_TRANSACTION_MAINTENANCE) ? (
+                        <button className="action-btn action-btn--delete" onClick={async () => {
+                          try {
+                            // Log the delete action with transaction data before deletion
+                            frontendLoggingService.logDelete("CashTransaction", transaction.id, transaction.transactionId, {
+                              transactionId: transaction.transactionId,
+                              amount: transaction.amount,
+                              status: transaction.status
+                            }, `Deleted cash transaction: ${transaction.transactionId}`);
+                            
+                            await axios.delete(`http://localhost:3001/transactions/${transaction.id}`, { headers: { accessToken: localStorage.getItem("accessToken") } });
+                            setTransactions(curr => curr.filter(x => x.id !== transaction.id));
+                            showMessage("Cash transaction deleted successfully", "success");
+                          } catch (err) {
+                            const msg = err?.response?.data?.error || "Failed to delete cash transaction";
+                            showMessage(msg, "error");
+                          }
+                        }} title="Delete">
+                          <FiTrash2 />
+                        </button>
+                      ) : (
+                        <button 
+                          className="action-btn action-btn--delete" 
+                          onClick={() => showMessage("Your role lacks permission to delete cash transactions", "error")} 
+                          title="Delete - No Permission"
+                          style={{ opacity: 0.5, cursor: "not-allowed" }}
+                          disabled
+                        >
+                          <FiTrash2 />
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <Pagination
+            currentPage={currentPage}
+            totalItems={sortedTransactions.length}
+            itemsPerPage={itemsPerPage}
+            onPageChange={handlePageChange}
+            onItemsPerPageChange={handleItemsPerPageChange}
+          />
+        </section>
+      </main>
+
+      {/* Status Change Modal */}
+      {showStatusModal && (
+        <div 
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: "rgba(0, 0, 0, 0.7)",
+            backdropFilter: "blur(4px)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 10000
+          }}
+          onClick={() => setShowStatusModal(false)}
+        >
+          <div 
+            style={{
+              backgroundColor: "white",
+              borderRadius: "12px",
+              padding: "24px",
+              width: "90%",
+              maxWidth: "500px",
+              maxHeight: "80vh",
+              overflow: "auto"
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 style={{ margin: "0 0 20px 0", color: "var(--primary-700)" }}>
+              Confirm Status Change
+            </h3>
+            
+            <p style={{ marginBottom: "20px", color: "var(--muted-text)", textAlign: "center" }}>
+              You are about to {statusAction} {selectedTransactions.length} {selectedTransactions.length === 1 ? 'cash transaction' : 'cash transactions'}.
+            </p>
+
+            <div style={{ display: "flex", gap: "12px", justifyContent: "flex-end" }}>
+              <button
+                onClick={() => setShowStatusModal(false)}
+                style={{
+                  padding: "8px 16px",
+                  border: "1px solid var(--muted-text)",
+                  borderRadius: "6px",
+                  backgroundColor: "white",
+                  color: "var(--muted-text)",
+                  cursor: "pointer"
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmStatusChange}
+                style={{
+                  padding: "8px 16px",
+                  border: "none",
+                  borderRadius: "6px",
+                  backgroundColor: statusAction === "Rejected" ? "#ef4444" : statusAction === "Returned" ? "#f59e0b" : "#10b981",
+                  color: "white",
+                  cursor: "pointer"
+                }}
+              >
+                Confirm
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  ) : (
     <DashboardWrapper>
       <header className="header">
         <div className="header__left">

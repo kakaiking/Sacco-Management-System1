@@ -3,9 +3,8 @@
 module.exports = {
   up: async (queryInterface, Sequelize) => {
     // Check if table already exists
-    const tableExists = await queryInterface.showAllTables().then(tables => 
-      tables.some(table => table.tableName === 'MemberCategories')
-    );
+    const tables = await queryInterface.showAllTables();
+    const tableExists = tables.includes('MemberCategories') || tables.includes('membercategories');
     
     if (tableExists) {
       console.log('✅ MemberCategories table already exists - skipping migration');
@@ -74,8 +73,14 @@ module.exports = {
       }
     });
 
-    // Add index on saccoId
-    await queryInterface.addIndex('MemberCategories', ['saccoId']);
+    // Add index on saccoId with explicit name
+    try {
+      await queryInterface.addIndex('MemberCategories', ['saccoId'], {
+        name: 'member_categories_sacco_id'
+      });
+    } catch (err) {
+      console.log('Index member_categories_sacco_id already exists or could not be created');
+    }
     
     // Note: Foreign key constraint is disabled in the model definition
   },

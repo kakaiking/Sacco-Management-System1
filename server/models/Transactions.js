@@ -10,7 +10,6 @@ module.exports = (sequelize, DataTypes) => {
     // SACCO and account information
     saccoId: { type: DataTypes.STRING, allowNull: false },
     accountId: { type: DataTypes.STRING, allowNull: false }, // Account ID string
-    accountType: { type: DataTypes.ENUM('MEMBER', 'GL'), allowNull: false, defaultValue: 'MEMBER' }, // Account type
     
     // Double-entry fields
     entryType: { type: DataTypes.ENUM('DEBIT', 'CREDIT'), allowNull: false },

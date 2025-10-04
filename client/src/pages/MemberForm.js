@@ -417,21 +417,39 @@ function MemberForm({ id: propId, isWindowMode = false }) {
   };
 
   const validatePhotoTab = () => {
-    // For Minor members, require at least one upload for both minor and guardian
+    // For Minor members, require all three uploads for both minor and guardian
     if (form.category === 'Minor') {
-      const minorHasUploads = photos.length > 0 || signatures.length > 0 || biometrics.length > 0;
-      const guardianHasUploads = guardianPhotos.length > 0 || guardianSignatures.length > 0 || guardianBiometrics.length > 0;
-      
-      if (!minorHasUploads) {
-        return { isValid: false, message: "Please add at least one photo, signature, or biometric for the minor" };
+      // Check minor's uploads
+      if (photos.length === 0) {
+        return { isValid: false, message: "Please add a photo for the minor" };
       }
-      if (!guardianHasUploads) {
-        return { isValid: false, message: "Please add at least one photo, signature, or biometric for the guardian" };
+      if (signatures.length === 0) {
+        return { isValid: false, message: "Please add a signature for the minor" };
+      }
+      if (biometrics.length === 0) {
+        return { isValid: false, message: "Please add biometrics for the minor" };
+      }
+      
+      // Check guardian's uploads
+      if (guardianPhotos.length === 0) {
+        return { isValid: false, message: "Please add a photo for the guardian" };
+      }
+      if (guardianSignatures.length === 0) {
+        return { isValid: false, message: "Please add a signature for the guardian" };
+      }
+      if (guardianBiometrics.length === 0) {
+        return { isValid: false, message: "Please add biometrics for the guardian" };
       }
     } else {
-      // For other member types, require at least one photo, signature, or biometric
-      if (photos.length === 0 && signatures.length === 0 && biometrics.length === 0) {
-        return { isValid: false, message: "Please add at least one photo, signature, or biometric" };
+      // For other member types, require all three: photo, signature, and biometrics
+      if (photos.length === 0) {
+        return { isValid: false, message: "Please add a photo" };
+      }
+      if (signatures.length === 0) {
+        return { isValid: false, message: "Please add a signature" };
+      }
+      if (biometrics.length === 0) {
+        return { isValid: false, message: "Please add biometrics" };
       }
     }
     return { isValid: true };
@@ -1747,6 +1765,10 @@ function MemberForm({ id: propId, isWindowMode = false }) {
     // Reset completed tabs
     setCompletedTabs(new Set());
     
+    // Reset to first tab
+    setActiveTab("personal");
+    setCurrentAllowedTab("personal");
+    
     // Switch to create mode
     setFormMode('create');
     
@@ -2166,16 +2188,18 @@ function MemberForm({ id: propId, isWindowMode = false }) {
 
       <main className="dashboard__content">
         <section className="card" style={{ padding: "24px" }}>
-          <form onSubmit={save}>
-          {/* Member No and Member Name at the top */}
+          <form onSubmit={save} >
+          {/* Member Lookup - Topmost Element */}
           <div style={{ 
-            display: "grid", 
-            gridTemplateColumns: "1fr auto", 
-            gap: "20px",
-            marginBottom: "12px",
-            alignItems: "start"
+            marginBottom: "24px"
           }}>
-            <div style={{ display: "grid", gap: "12px" }}>
+            <div style={{ 
+              display: "grid", 
+              gridTemplateColumns: formMode === 'create' ? "1fr auto" : "1fr auto auto", 
+              gap: "20px",
+              marginBottom: "12px",
+              alignItems: "center"
+            }}>
               <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
                 <label style={{ fontWeight: "600", color: "var(--primary-700)", minWidth: "80px" }}>
                   Member
@@ -2198,15 +2222,15 @@ function MemberForm({ id: propId, isWindowMode = false }) {
                     className="search-icon-external"
                     onClick={() => setIsMemberLookupModalOpen(true)}
                     title="Search members"
+                    disabled={formMode === 'view'}
                   >
                     <FiSearch />
                   </button>
                 </div>
               </div>
-              <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-                <span style={{ fontWeight: "600", color: "var(--primary-700)", minWidth: "60px" }}>
-                  Status
-                </span>
+              
+              {/* Status Badge - Only show in view and edit modes */}
+              {(formMode === 'view' || formMode === 'edit') && (
                 <div 
                   style={{
                     display: "inline-block",
@@ -2239,12 +2263,11 @@ function MemberForm({ id: propId, isWindowMode = false }) {
                 >
                   {form.status || "Pending"}
                 </div>
-              </div>
-            </div>
-            
-            {/* Actions Button */}
-            {formMode !== 'create' && (
-              <div style={{ position: "relative" }} data-actions-dropdown>
+              )}
+              
+              {/* Actions Button */}
+              {formMode !== 'create' && (
+                <div style={{ position: "relative" }} data-actions-dropdown>
                 <button
                   type="button"
                   className="pill"
@@ -2436,7 +2459,8 @@ function MemberForm({ id: propId, isWindowMode = false }) {
                   </div>
                 )}
               </div>
-            )}          
+            )}
+            </div>
           </div> 
 
 
@@ -4155,7 +4179,338 @@ function MemberForm({ id: propId, isWindowMode = false }) {
               ) : (
                 // Regular member layout - single set of uploads
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "20px", padding: "20px" }}>
-                  {/* This will contain the original photo, signature, and biometrics sections */}
+                  {/* Photo Section */}
+                  <div style={{ 
+                    display: "flex", 
+                    flexDirection: "column", 
+                    gap: "12px",
+                    padding: "20px",
+                    border: "1px solid #e5e7eb",
+                    borderRadius: "8px",
+                    backgroundColor: "#f9fafb"
+                  }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <h3 style={{ fontWeight: "600", color: "var(--primary-700)", margin: "0", fontSize: "16px" }}>
+                        Photos ({photos.length})
+                      </h3>
+                      {formMode !== 'view' && (
+                        <button
+                          type="button"
+                          className="pill"
+                          onClick={() => setShowPhotoModal(true)}
+                          style={{
+                            padding: "6px 12px",
+                            fontSize: "12px",
+                            minWidth: "auto"
+                          }}
+                        >
+                          Add Photo
+                        </button>
+                      )}
+                    </div>
+                    
+                    {photos.length > 0 ? (
+                      <div style={{ display: "flex", flexDirection: "column", gap: "8px", maxHeight: "300px", overflowY: "auto" }}>
+                        {photos.map((photo, index) => (
+                          <div key={index} style={{ 
+                            display: "flex", 
+                            alignItems: "center", 
+                            gap: "12px",
+                            padding: "8px",
+                            border: "1px solid #e5e7eb",
+                            borderRadius: "6px",
+                            backgroundColor: "#ffffff"
+                          }}>
+                            <div style={{ 
+                              width: "60px", 
+                              height: "60px", 
+                              border: "1px solid #e5e7eb", 
+                              borderRadius: "4px", 
+                              overflow: "hidden",
+                              backgroundColor: "#f9fafb",
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              flexShrink: 0
+                            }}>
+                              <img 
+                                src={photo.file instanceof File ? URL.createObjectURL(photo.file) : (photo.isBase64 ? photo.data : photo)} 
+                                alt="Photo preview" 
+                                style={{ 
+                                  width: "100%", 
+                                  height: "100%", 
+                                  objectFit: "cover" 
+                                }}
+                                onError={(e) => {
+                                  e.target.style.display = 'none';
+                                  e.target.nextSibling.style.display = 'block';
+                                }}
+                              />
+                              <div style={{ 
+                                display: 'none',
+                                color: "#6b7280", 
+                                fontSize: "10px", 
+                                textAlign: "center",
+                                padding: "4px"
+                              }}>
+                                No Image
+                              </div>
+                            </div>
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div style={{ 
+                                fontSize: "14px", 
+                                fontWeight: "500", 
+                                color: "#374151",
+                                marginBottom: "2px",
+                                overflow: "hidden",
+                                textOverflow: "ellipsis",
+                                whiteSpace: "nowrap"
+                              }}>
+                                {photo.name}
+                              </div>
+                              <div style={{ 
+                                fontSize: "12px", 
+                                color: "#6b7280"
+                              }}>
+                                {new Date(photo.createdAt).toLocaleDateString()} {new Date(photo.createdAt).toLocaleTimeString()}
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div style={{ 
+                        textAlign: "center", 
+                        color: "var(--muted-text)", 
+                        padding: "20px",
+                        fontSize: "14px"
+                      }}>
+                        No photos uploaded yet
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Signature Section */}
+                  <div style={{ 
+                    display: "flex", 
+                    flexDirection: "column", 
+                    gap: "12px",
+                    padding: "20px",
+                    border: "1px solid #e5e7eb",
+                    borderRadius: "8px",
+                    backgroundColor: "#f9fafb"
+                  }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <h3 style={{ fontWeight: "600", color: "var(--primary-700)", margin: "0", fontSize: "16px" }}>
+                        Signatures ({signatures.length})
+                      </h3>
+                      {formMode !== 'view' && (
+                        <button
+                          type="button"
+                          className="pill"
+                          onClick={() => setShowSignatureModal(true)}
+                          style={{
+                            padding: "6px 12px",
+                            fontSize: "12px",
+                            minWidth: "auto"
+                          }}
+                        >
+                          Add Signature
+                        </button>
+                      )}
+                    </div>
+                    
+                    {signatures.length > 0 ? (
+                      <div style={{ display: "flex", flexDirection: "column", gap: "8px", maxHeight: "300px", overflowY: "auto" }}>
+                        {signatures.map((signature, index) => (
+                          <div key={index} style={{ 
+                            display: "flex", 
+                            alignItems: "center", 
+                            gap: "12px",
+                            padding: "8px",
+                            border: "1px solid #e5e7eb",
+                            borderRadius: "6px",
+                            backgroundColor: "#ffffff"
+                          }}>
+                            <div style={{ 
+                              width: "60px", 
+                              height: "60px", 
+                              border: "1px solid #e5e7eb", 
+                              borderRadius: "4px", 
+                              overflow: "hidden",
+                              backgroundColor: "#f9fafb",
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              flexShrink: 0
+                            }}>
+                              <img 
+                                src={signature.file instanceof File ? URL.createObjectURL(signature.file) : (signature.isBase64 ? signature.data : signature)} 
+                                alt="Signature preview" 
+                                style={{ 
+                                  width: "100%", 
+                                  height: "100%", 
+                                  objectFit: "cover" 
+                                }}
+                                onError={(e) => {
+                                  e.target.style.display = 'none';
+                                  e.target.nextSibling.style.display = 'block';
+                                }}
+                              />
+                              <div style={{ 
+                                display: 'none',
+                                color: "#6b7280", 
+                                fontSize: "10px", 
+                                textAlign: "center",
+                                padding: "4px"
+                              }}>
+                                No Image
+                              </div>
+                            </div>
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div style={{ 
+                                fontSize: "14px", 
+                                fontWeight: "500", 
+                                color: "#374151",
+                                marginBottom: "2px",
+                                overflow: "hidden",
+                                textOverflow: "ellipsis",
+                                whiteSpace: "nowrap"
+                              }}>
+                                {signature.name}
+                              </div>
+                              <div style={{ 
+                                fontSize: "12px", 
+                                color: "#6b7280"
+                              }}>
+                                {new Date(signature.createdAt).toLocaleDateString()} {new Date(signature.createdAt).toLocaleTimeString()}
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div style={{ 
+                        textAlign: "center", 
+                        color: "var(--muted-text)", 
+                        padding: "20px",
+                        fontSize: "14px"
+                      }}>
+                        No signatures uploaded yet
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Biometrics Section */}
+                  <div style={{ 
+                    display: "flex", 
+                    flexDirection: "column", 
+                    gap: "12px",
+                    padding: "20px",
+                    border: "1px solid #e5e7eb",
+                    borderRadius: "8px",
+                    backgroundColor: "#f9fafb"
+                  }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <h3 style={{ fontWeight: "600", color: "var(--primary-700)", margin: "0", fontSize: "16px" }}>
+                        Biometrics ({biometrics.length})
+                      </h3>
+                      {formMode !== 'view' && (
+                        <button
+                          type="button"
+                          className="pill"
+                          onClick={() => setShowBiometricsModal(true)}
+                          style={{
+                            padding: "6px 12px",
+                            fontSize: "12px",
+                            minWidth: "auto"
+                          }}
+                        >
+                          Add Biometrics
+                        </button>
+                      )}
+                    </div>
+                    
+                    {biometrics.length > 0 ? (
+                      <div style={{ display: "flex", flexDirection: "column", gap: "8px", maxHeight: "300px", overflowY: "auto" }}>
+                        {biometrics.map((biometric, index) => (
+                          <div key={index} style={{ 
+                            display: "flex", 
+                            alignItems: "center", 
+                            gap: "12px",
+                            padding: "8px",
+                            border: "1px solid #e5e7eb",
+                            borderRadius: "6px",
+                            backgroundColor: "#ffffff"
+                          }}>
+                            <div style={{ 
+                              width: "60px", 
+                              height: "60px", 
+                              border: "1px solid #e5e7eb", 
+                              borderRadius: "4px", 
+                              overflow: "hidden",
+                              backgroundColor: "#f9fafb",
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              flexShrink: 0
+                            }}>
+                              <img 
+                                src={biometric.file instanceof File ? URL.createObjectURL(biometric.file) : (biometric.isBase64 ? biometric.data : biometric)} 
+                                alt="Biometric preview" 
+                                style={{ 
+                                  width: "100%", 
+                                  height: "100%", 
+                                  objectFit: "cover" 
+                                }}
+                                onError={(e) => {
+                                  e.target.style.display = 'none';
+                                  e.target.nextSibling.style.display = 'block';
+                                }}
+                              />
+                              <div style={{ 
+                                display: 'none',
+                                color: "#6b7280", 
+                                fontSize: "10px", 
+                                textAlign: "center",
+                                padding: "4px"
+                              }}>
+                                No Image
+                              </div>
+                            </div>
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div style={{ 
+                                fontSize: "14px", 
+                                fontWeight: "500", 
+                                color: "#374151",
+                                marginBottom: "2px",
+                                overflow: "hidden",
+                                textOverflow: "ellipsis",
+                                whiteSpace: "nowrap"
+                              }}>
+                                {biometric.name}
+                              </div>
+                              <div style={{ 
+                                fontSize: "12px", 
+                                color: "#6b7280"
+                              }}>
+                                {new Date(biometric.createdAt).toLocaleDateString()} {new Date(biometric.createdAt).toLocaleTimeString()}
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div style={{ 
+                        textAlign: "center", 
+                        color: "var(--muted-text)", 
+                        padding: "20px",
+                        fontSize: "14px"
+                      }}>
+                        No biometrics uploaded yet
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
               

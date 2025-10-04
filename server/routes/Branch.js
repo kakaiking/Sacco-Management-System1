@@ -57,7 +57,10 @@ router.get("/", validateToken, logViewOperation("Branch"), async (req, res) => {
       where[Op.or] = [
         { branchId: { [Op.like]: `%${q}%` } },
         { branchName: { [Op.like]: `%${q}%` } },
+        { shortName: { [Op.like]: `%${q}%` } },
         { branchLocation: { [Op.like]: `%${q}%` } },
+        { city: { [Op.like]: `%${q}%` } },
+        { phoneNumber: { [Op.like]: `%${q}%` } },
       ];
     }
     
@@ -96,7 +99,34 @@ router.get("/name/:branchId", validateToken, logViewOperation("Branch"), async (
   }
 });
 
-// Get one
+// Get full branch by branchId
+router.get("/byBranchId/:branchId", validateToken, logViewOperation("Branch"), async (req, res) => {
+  try {
+    const { branchId } = req.params;
+    
+    // Validate branchId parameter
+    if (!branchId) {
+      return respond(res, 400, "branchId is required");
+    }
+    
+    const branch = await Branch.findOne({ 
+      where: { 
+        branchId: branchId,
+        isDeleted: 0 
+      }
+    });
+    
+    if (!branch) {
+      return respond(res, 404, "Branch not found");
+    }
+    
+    respond(res, 200, "Branch fetched successfully", branch);
+  } catch (err) {
+    handleError(res, err, "Failed to fetch branch");
+  }
+});
+
+// Get one by numeric ID
 router.get("/:id", validateToken, logViewOperation("Branch"), async (req, res) => {
   try {
     const { id } = req.params;
@@ -132,7 +162,14 @@ router.post("/", validateToken, logCreateOperation("Branch"), async (req, res) =
       branchId: data.branchId.trim(),
       saccoId: data.saccoId.trim(),
       branchName: data.branchName.trim(),
+      shortName: data.shortName ? data.shortName.trim() : null,
       branchLocation: data.branchLocation ? data.branchLocation.trim() : null,
+      city: data.city ? data.city.trim() : null,
+      poBox: data.poBox ? data.poBox.trim() : null,
+      postalCode: data.postalCode ? data.postalCode.trim() : null,
+      phoneNumber: data.phoneNumber ? data.phoneNumber.trim() : null,
+      alternativePhone: data.alternativePhone ? data.alternativePhone.trim() : null,
+      branchCashLimit: data.branchCashLimit ? parseFloat(data.branchCashLimit) : 0.00,
       status: "Active",
       createdOn: new Date(),
       createdBy: username,
@@ -183,7 +220,14 @@ router.put("/:id", validateToken, logUpdateOperation("Branch"), async (req, res)
       branchId: data.branchId ? data.branchId.trim() : undefined,
       saccoId: data.saccoId ? data.saccoId.trim() : undefined,
       branchName: data.branchName ? data.branchName.trim() : undefined,
+      shortName: data.shortName !== undefined ? (data.shortName ? data.shortName.trim() : null) : undefined,
       branchLocation: data.branchLocation !== undefined ? (data.branchLocation ? data.branchLocation.trim() : null) : undefined,
+      city: data.city !== undefined ? (data.city ? data.city.trim() : null) : undefined,
+      poBox: data.poBox !== undefined ? (data.poBox ? data.poBox.trim() : null) : undefined,
+      postalCode: data.postalCode !== undefined ? (data.postalCode ? data.postalCode.trim() : null) : undefined,
+      phoneNumber: data.phoneNumber !== undefined ? (data.phoneNumber ? data.phoneNumber.trim() : null) : undefined,
+      alternativePhone: data.alternativePhone !== undefined ? (data.alternativePhone ? data.alternativePhone.trim() : null) : undefined,
+      branchCashLimit: data.branchCashLimit !== undefined ? (data.branchCashLimit ? parseFloat(data.branchCashLimit) : 0.00) : undefined,
       status: data.status || undefined,
       verifierRemarks: data.verifierRemarks !== undefined ? (data.verifierRemarks ? data.verifierRemarks.trim() : null) : undefined,
       modifiedOn: new Date(),

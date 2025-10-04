@@ -4,6 +4,7 @@
   display: flex;
   align-items: center;
   flex-direction: column;
+  zoom: 1.0; /* Set default zoom to 100% */
 }
 
 * {
@@ -314,6 +315,7 @@ span {
   position: sticky;
   top: 0;
   z-index: 1000;
+  overflow: visible;
 }
 
 .navbar .links {
@@ -456,6 +458,7 @@ span {
   justify-content: flex-end;
   align-items: center;
   padding-right: 20px;
+  overflow: visible;
 }
 
 .current-time {
@@ -474,10 +477,11 @@ span {
   position: relative;
   display: flex;
   align-items: center;
+  overflow: visible;
 }
 
 .avatarButton {
-  background: red;
+  background: #fff;
   border: none;
   cursor: pointer;
   padding: 0;
@@ -498,20 +502,28 @@ span {
 }
 
 .avatarDropdown {
-  position: absolute;
-  top: calc(100% + 8px);
-  right: 0;
-  background: var(--surface);
-  border: 1px solid var(--border);
+  position: fixed !important;
+  height: 7vh !important;
+  top: 50px !important;
+  right: 50px !important;
+  background: #fff !important;
+  border: 4px solid rgba(59, 130, 246, 0.08) !important;
   border-radius: 12px;
-  box-shadow: var(--shadow);
-  padding: 8px;
-  min-width: 140px;
-  z-index: 50;
+  box-shadow: 0 15px 15px rgba(59, 130, 246, 0.08) !important;
+  padding: 5px !important;
+  min-width: 200px !important;
+  z-index: 2147483647 !important;
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  color: white !important;
+  font-size: 20px !important;
+  font-weight: bold !important;
 }
 
 .dropdownItem {
   width: 100%;
+  height: 5vh;
   text-align: left;
   background: transparent;
   border: none;
@@ -1514,6 +1526,7 @@ button {
   min-height: 100vh;
   height: 100%;
   width: 280px;
+  /* max-width: 30vw; */
   transform: translateX(-280px);
   /* show only half of 36px handle (18px) */
   background: linear-gradient(135deg, var(--surface) 0%, var(--primary-50) 100%);
@@ -1934,6 +1947,7 @@ button {
 .dashboard {
   padding: 24px;
   width: 100%;
+  height: auto;
   max-width: 1200px;
   margin: 0 auto;
   transition: margin-left 0.1s ease;
@@ -1994,8 +2008,7 @@ button {
   display: flex;
   flex-direction: column;
   gap: 20px;
-  height: auto;
-  background-color: blue;
+  min-height: fit-content;
   border-radius: 0 0 16px 16px;
 }
 
@@ -2956,9 +2969,8 @@ button {
   background: var(--surface);
   border-radius: 12px;
   box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
-  max-width: 800px;
-  width: 100%;
-  max-height: 90vh;
+  width: 60%;
+  height: 80%;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -3203,11 +3215,18 @@ button {
   border-radius: 8px;
   background: white;
   overflow: hidden;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  height: 40px;
+}
+
+.combined-member-input.compact {
+  height: 28px;
+  border-radius: 6px;
+  box-shadow: none;
 }
 
 .combined-member-input .member-no-section {
-  flex: 0 0 30%;
+  flex: 0 0 auto;
   padding: 12px 16px;
   border-right: 1px solid var(--border);
   background: #f9fafb;
@@ -3215,7 +3234,15 @@ button {
   color: var(--primary-700);
   display: flex;
   align-items: center;
-  min-height: 48px;
+  height: 40px;
+  white-space: nowrap;
+  min-width: fit-content;
+}
+
+.combined-member-input.compact .member-no-section {
+  padding: 6px 10px;
+  height: 28px;
+  font-size: 13px;
 }
 
 .combined-member-input .member-name-section {
@@ -3223,8 +3250,14 @@ button {
   padding: 12px 16px;
   display: flex;
   align-items: center;
-  min-height: 48px;
+  height: 40px;
   color: var(--text-primary);
+}
+
+.combined-member-input.compact .member-name-section {
+  padding: 6px 10px;
+  height: 28px;
+  font-size: 13px;
 }
 
 .combined-member-input .search-icon {
@@ -3263,6 +3296,13 @@ button {
   cursor: pointer;
   transition: all 0.2s ease;
   flex-shrink: 0;
+}
+
+.search-icon-external.compact {
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  padding: 0;
 }
 
 .search-icon-external:hover {
@@ -5290,6 +5330,10 @@ button {
   background: white;
   overflow: hidden;
   transition: left 0.1s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  flex-direction: column;
+  height: fit-content;
+  max-height: calc(100vh - 140px);
 }
 
 .window-wrapper.minimized {
@@ -5368,13 +5412,18 @@ button {
   color: var(--text-primary);
 }
 
+.window-control-button.refresh:hover {
+  background: var(--primary-100);
+  color: var(--primary-600);
+}
+
 .window-control-button.close:hover {
   background: var(--danger-100);
   color: var(--danger-600);
 }
 
 .window-content {
-  flex: 1;
+  flex: 0 1 auto;
   overflow: auto;
   background: white;
 }

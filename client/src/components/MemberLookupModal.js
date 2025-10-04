@@ -257,9 +257,49 @@ function MemberLookupModal({ isOpen, onClose, onSelectMember }) {
                         <td>{member.identificationNumber || '-'}</td>
                         <td>{member.category || '-'}</td>
                         <td>
-                          <span className={`status-badge status-${member.status.toLowerCase()}`}>
+                          <div
+                            style={{
+                              padding: "4px 8px",
+                              borderRadius: "4px",
+                              fontSize: "12px",
+                              fontWeight: "500",
+                              textTransform: "uppercase",
+                              letterSpacing: "0.5px",
+                              backgroundColor: 
+                                member.status === "Approved" ? "rgba(16, 185, 129, 0.2)" :
+                                member.status === "Pending" ? "rgba(6, 182, 212, 0.2)" :
+                                member.status === "Returned" ? "rgba(249, 115, 22, 0.2)" :
+                                member.status === "Rejected" ? "rgba(239, 68, 68, 0.2)" :
+                                member.status === "Active" ? "rgba(16, 185, 129, 0.2)" :
+                                member.status === "Inactive" ? "rgba(239, 68, 68, 0.2)" :
+                                member.status === "Withdrawn" ? "rgba(107, 114, 128, 0.2)" :
+                                member.status === "Diseased" ? "rgba(75, 85, 99, 0.2)" :
+                                "rgba(107, 114, 128, 0.2)",
+                              color: 
+                                member.status === "Approved" ? "#059669" :
+                                member.status === "Pending" ? "#0891b2" :
+                                member.status === "Returned" ? "#ea580c" :
+                                member.status === "Rejected" ? "#dc2626" :
+                                member.status === "Active" ? "#059669" :
+                                member.status === "Inactive" ? "#dc2626" :
+                                member.status === "Withdrawn" ? "#6b7280" :
+                                member.status === "Diseased" ? "#4b5563" :
+                                "#6b7280",
+                              border: `1px solid ${
+                                member.status === "Approved" ? "rgba(16, 185, 129, 0.3)" :
+                                member.status === "Pending" ? "rgba(6, 182, 212, 0.3)" :
+                                member.status === "Returned" ? "rgba(249, 115, 22, 0.3)" :
+                                member.status === "Rejected" ? "rgba(239, 68, 68, 0.3)" :
+                                member.status === "Active" ? "rgba(16, 185, 129, 0.3)" :
+                                member.status === "Inactive" ? "rgba(239, 68, 68, 0.3)" :
+                                member.status === "Withdrawn" ? "rgba(107, 114, 128, 0.3)" :
+                                member.status === "Diseased" ? "rgba(75, 85, 99, 0.3)" :
+                                "rgba(107, 114, 128, 0.3)"
+                              }`
+                            }}
+                          >
                             {member.status}
-                          </span>
+                          </div>
                         </td>
                       </tr>
                     ))

@@ -53,7 +53,7 @@ function Home() {
         const headers = { accessToken: token };
 
         // Load Sacco information
-        const response = await axios.get("http://localhost:3001/saccos", { headers });
+        const response = await axios.get("http://localhost:3001/sacco", { headers });
         const saccos = response?.data?.entity ?? response?.data ?? [];
         
         if (Array.isArray(saccos) && saccos.length > 0) {
